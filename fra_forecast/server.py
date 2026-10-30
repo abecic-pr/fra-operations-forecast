@@ -1,4 +1,4 @@
-"""Local JSON API for the teammate's UI; no assets or directory listing."""
+"""Local JSON API and an allowlisted presentation page; no directory listing."""
 
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -16,12 +16,18 @@ from .wind_ml import MODEL_VERSION
 
 def make_handler(data_dir):
     data_dir = Path(data_dir)
+    presentation = Path(__file__).parent / "presentation"
     refresh_lock = threading.Lock()
     chat_lock = threading.Lock()
     weather_bot_lock = threading.Lock()
     chat_slots = threading.BoundedSemaphore(2)
     chat_requests = deque()
     routes = {
+        "/how-it-works": (presentation / "index.html", "text/html; charset=utf-8"),
+        "/how-it-works/": (presentation / "index.html", "text/html; charset=utf-8"),
+        "/how-it-works/style.css": (presentation / "style.css", "text/css; charset=utf-8"),
+        "/how-it-works/page.js": (presentation / "page.js", "text/javascript; charset=utf-8"),
+        "/api/traffic": (data_dir / "traffic.json", "application/json"),
         "/api/forecast": (data_dir / "forecast.json", "application/json"),
         "/api/sources": (data_dir / "sources.json", "application/json"),
         "/api/model-metrics": (data_dir / "models" / MODEL_VERSION / "metrics.json", "application/json"),
@@ -156,6 +162,7 @@ def serve(data_dir, port=8000):
         remember_forecast(data_dir, json.loads(snapshot.read_text()))
     server = ThreadingHTTPServer(("127.0.0.1", port), make_handler(data_dir))
     print(f"FRA data API: http://127.0.0.1:{server.server_port}/api/forecast", flush=True)
+    print(f"ML presentation: http://127.0.0.1:{server.server_port}/how-it-works", flush=True)
     try:
         server.serve_forever()
     except KeyboardInterrupt:

@@ -20,10 +20,11 @@ def optional_time(value):
     return iso(parse_time(value)) if value else None
 
 
-def normalize_flight(raw, fetched_at):
+def normalize_flight(raw, fetched_at, flighttype="departures"):
     if str(raw.get("ac", "")).upper() in GROUND_TYPES:
         return None, "ground_transport"
-    if str(raw.get("status", "")).strip().lower() in FINISHED_STATUSES:
+    finished = FINISHED_STATUSES | ({"arrived", "landed"} if flighttype == "arrivals" else set())
+    if str(raw.get("status", "")).strip().lower() in finished:
         return None, "finished_or_cancelled"
     if not raw.get("id") or not raw.get("fnr") or not raw.get("sched"):
         return None, "missing_identity_or_schedule"
@@ -50,7 +51,7 @@ def normalize_flight(raw, fetched_at):
     }, None
 
 
-def fetch_departures(client, start, end, max_pages=60, progress=print):
+def fetch_departures(client, start, end, max_pages=60, progress=print, flighttype="departures"):
     # Catch delayed services whose original schedule is already in the past.
     query_start = start-timedelta(hours=6)
     records, issues, counts = {}, [], {}
@@ -59,7 +60,7 @@ def fetch_departures(client, start, end, max_pages=60, progress=print):
     complete, reason = False, "page_limit"
     pages = 0
     for page in range(1,max_pages+1):
-        params = {"perpage":50,"lang":"en","page":page,"flighttype":"departures","time":iso(query_start)}
+        params = {"perpage":50,"lang":"en","page":page,"flighttype":flighttype,"time":iso(query_start)}
         url = BOARD_URL + "?" + urlencode(params)
         try:
             response, meta = client.json("fra_departures",url)
@@ -92,7 +93,7 @@ def fetch_departures(client, start, end, max_pages=60, progress=print):
                     schedules.append(parse_time(raw["sched"]))
             except ValueError:
                 pass
-            flight, excluded = normalize_flight(raw,meta["fetched_at"])
+            flight, excluded = normalize_flight(raw,meta["fetched_at"],flighttype)
             if excluded:
                 counts[excluded] = counts.get(excluded,0)+1
                 continue
@@ -112,7 +113,7 @@ def fetch_departures(client, start, end, max_pages=60, progress=print):
         time.sleep(0.15)
     return sorted(records.values(),key=lambda f:(f["assessment_at"],f["flight_id"])), {
         "status":"available" if complete and not issues else "partial" if records else "unavailable",
-        "url":BOARD_PAGE,"feed_url":BOARD_URL,"source_updated_at":updated,
+        "url":BOARD_PAGE.replace("departures.html", "arrivals.html") if flighttype == "arrivals" else BOARD_PAGE,"feed_url":BOARD_URL,"source_updated_at":updated,
         "pages_fetched":pages,"coverage_complete":complete,"coverage_end_reason":reason,
         "requested_start":iso(start),"requested_end":iso(end),"schedule_lookback_hours":6,
         "excluded_records":counts,"errors":issues,

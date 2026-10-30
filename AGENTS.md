@@ -65,3 +65,7 @@ wants that constraint respected throughout the project, including future chats.
 - Preserve other contributors' work. Do not implement UI unless asked.
 
 Research: `docs/izvori-podataka.md` and `docs/podaci-aplikacije.md`.
+
+## Parallel runway traffic scope
+
+Philipp clarified on 30 October 2026 that the new next-plane landing/departure feature covers all three parallel runways, excluding RWY18. Keep the existing RWY18 weather analysis separate. Traffic assignments and positions must be independently supplied; never infer them from the airport-wide operating direction or schedule. See docs/airport-traffic.md.

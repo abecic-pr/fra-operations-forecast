@@ -128,3 +128,19 @@ const enriched={schema_version:'1.1',generated_at:demo.generatedAt,forecast:[{va
 assert.equal(w.adaptBackendSnapshot(enriched).frames[0].operatingDirection,'07');
 assert.equal(w.adaptBackendSnapshot(enriched).frames[0].directionCertainty,null);
 console.log('Airport movement direction and 1.1 adapter checks passed.');
+const trafficCode=(await transformWithOxc(await readFile(new URL('../src/data/traffic.ts',import.meta.url),'utf8'),'traffic.ts')).code;
+const traffic=await import('data:text/javascript;base64,'+Buffer.from(trafficCode).toString('base64'));
+const trafficNow=Date.parse('2026-10-30T12:00:00Z');
+const flight={id:'LH1',number:'LH 1',operation:'landing',scheduled_at:'2026-10-30T12:10:00Z',assigned_runway:'07L',assignment_status:'unknown'};
+const trafficSnapshot={schema_version:'1.0',generated_at:'2026-10-30T12:00:00Z',sources:{arrivals:{status:'available'}},flights:[flight]};
+assert.equal(traffic.nextMovement(traffic.adaptTraffic(trafficSnapshot),'07L/25R',trafficNow),null);
+flight.assignment_status='confirmed';
+assert.equal(traffic.nextMovement(traffic.adaptTraffic(trafficSnapshot),'07L/25R',trafficNow)?.operation,'landing');
+assert.equal(traffic.nextMovement(traffic.adaptTraffic(trafficSnapshot),'07L/25R',trafficNow+16*60000),null);
+assert.equal(traffic.runwayPair('18'),null);
+assert.equal(traffic.runwayPair('25L'),'07R/25L');
+assert.equal(w.runwayComponents(demo.frames[0],null).tailwind,null);
+assert.equal(traffic.demoTraffic(trafficNow,'25').flights.every(f=>f.position===null||f.position.heading===250),true);
+console.log('Traffic checks passed: confirmed-only next flight, stale data, runway 18 exclusion, missing direction, and preview movement.');
+
+assert.equal(traffic.adaptTraffic({...trafficSnapshot,flights:[{...flight,assigned_runway:'18',assignment_status:'confirmed'}]}).flights.length,0);

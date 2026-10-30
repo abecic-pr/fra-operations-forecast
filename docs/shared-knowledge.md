@@ -141,3 +141,7 @@ Use the linked pages below for the active plan and detailed references.
 ## Concurrent integration reconciled
 
 Antonio’s design-branch merge b5e8ab5 arrived during upload. Its `/api/weather-bot` dashboard contract and module name are retained alongside the separate `/api/chat` flight assistant. Its verification archive fix accepts additive schema 1.1 while preserving baseline components; its additional route and archive tests are retained. Airport direction visuals and enriched forecast adapter remain from this design increment.
+
+## Parallel runway traffic increment — 30 October 2026
+
+User clarified the new flight feature covers all parallel runways except RWY18. Added official FRA arrival/departure board collection and GET /api/traffic, searchable paginated flights, separate landing/departure wind cards, confirmed-next-flight limit selection and simulated plane preview. Initial collection: 993 arrivals and 1,051 departures, with no source runway assignments or aircraft coordinates. Live mode remains Unassigned and hides aircraft markers; preview is explicitly simulated. Antonio must add confirmed runway assignments, exact runway ends and fresh source-timestamped positions to docs/airport-traffic.md. Historical wind analysis and the new main presentation page are retained. Main upload is being finalized.

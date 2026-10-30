@@ -219,8 +219,8 @@ export function windSummary(dataset: WindDataset) {
 
 
 /** Project wind vectors onto a runway's true heading. Limits apply to components, never total speed. */
-export function runwayComponents(frame:WindFrame|undefined, heading:number) {
-  if(!frame||frame.eastKt===null||frame.northKt===null)return {tailwind:null,headwind:null,crosswind:null,gustCrosswind:null};
+export function runwayComponents(frame:WindFrame|undefined, heading:number|null) {
+  if(heading===null||!frame||frame.eastKt===null||frame.northKt===null)return {tailwind:null,headwind:null,crosswind:null,gustCrosswind:null};
   const rad=heading*Math.PI/180,along=frame.eastKt*Math.sin(rad)+frame.northKt*Math.cos(rad);
   const crosswind=Math.abs(frame.eastKt*Math.cos(rad)-frame.northKt*Math.sin(rad));
   const speed=Math.hypot(frame.eastKt,frame.northKt);

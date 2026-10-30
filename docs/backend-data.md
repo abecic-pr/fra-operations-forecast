@@ -101,7 +101,10 @@ run the baseline. ML output does not replace the baseline's direction-change for
 ## Local JSON API and frontend integration
 
 Start `python3 -m fra_forecast serve`. The server exposes these routes at
-`http://127.0.0.1:8000`, with no HTML, static UI assets, or directory listing:
+`http://127.0.0.1:8000`. A standalone ML presentation page is served at
+`/how-it-works` with two explicitly allowlisted assets (`style.css`, `page.js`)
+under the same path. It reads `/api/model-comparison`; no JSON contracts change.
+There is no general static-file access or directory listing.
 
 | Route | Result |
 | --- | --- |
