@@ -147,6 +147,14 @@ class DataTests(unittest.TestCase):
             self.assertGreater(parse_time(row["valid_time"]), START + timedelta(minutes=10))
             self.assertIsNone(row["p_od07"])
 
+    def test_publishes_native_quarter_hour_samples_without_filling_gaps(self):
+        fine = [{**weather(i), "resolution_minutes": 15} for i in (0, 15, 45, 60)]
+        result = live_snapshot(START, {"icon_d2": {"minutely_15": fine}}, None, [], None, [])
+        self.assertEqual([r["valid_time"] for r in result["rwy18_weather_timeline"]], [r["valid_time"] for r in fine])
+        self.assertTrue(all(r["resolution_minutes"] == 15 for r in result["rwy18_weather_timeline"]))
+        self.assertEqual(len(result["forecast"]), 48)
+        self.assertEqual(result["forecast"][1]["rwy18_weather_state"], "unknown")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -13,11 +13,13 @@ export type WindFrame = {
   operatingDirection?: '07' | '25' | null;
   directionBasis?: string;
   directionCertainty?: number | null;
+  resolutionMinutes?: number;
 };
 export type WindDataset = {
   mode: 'demo' | 'live';
   generatedAt: string;
   frames: WindFrame[];
+  planningFrames?: WindFrame[];
   spatialMode: 'synthetic' | 'uniform-airport';
   source: string;
   observations?: MeasuredWind[];
@@ -49,19 +51,19 @@ export function components18(eastKt: number | null, northKt: number | null, gust
   return { tailwindKt, crosswindKt, gustCrosswindKt, weatherState };
 }
 export type RunwayTone = 'green' | 'yellow' | 'red' | 'unknown';
-/** Visual caution starts at 80% of a wind limit; it is not a closure prediction. */
+/** Visual caution starts four knots below a wind limit; it is not a closure prediction. */
 export function runwayPresentation(frame: WindFrame, unavailable = false) {
   const exceeds = (frame.tailwindKt !== null && frame.tailwindKt >= DEPARTURE_LIMIT_KT)
     || (frame.crosswindKt !== null && frame.crosswindKt > CROSSWIND_LIMIT_KT)
     || (frame.gustCrosswindKt !== null && frame.gustCrosswindKt > CROSSWIND_LIMIT_KT);
-  const near = (frame.tailwindKt !== null && frame.tailwindKt >= DEPARTURE_LIMIT_KT * .8)
-    || (frame.crosswindKt !== null && frame.crosswindKt >= CROSSWIND_LIMIT_KT * .8)
-    || (frame.gustCrosswindKt !== null && frame.gustCrosswindKt >= CROSSWIND_LIMIT_KT * .8);
+  const near = (frame.tailwindKt !== null && frame.tailwindKt >= DEPARTURE_LIMIT_KT - 4)
+    || (frame.crosswindKt !== null && frame.crosswindKt >= CROSSWIND_LIMIT_KT - 4)
+    || (frame.gustCrosswindKt !== null && frame.gustCrosswindKt >= CROSSWIND_LIMIT_KT - 4);
   const tone: RunwayTone = unavailable ? 'unknown' : exceeds || frame.weatherState === 'not_usable' ? 'red'
     : near ? 'yellow' : frame.weatherState === 'usable' ? 'green' : 'unknown';
   return { tone, color: {green:'#69df9b',yellow:'#f3d36d',red:'#ff756e',unknown:'#a8b3bd'}[tone],
     label: {green:'Within wind limits',yellow:'Approaching wind limits',red:'Wind limits exceeded',unknown:unavailable?'Connection lost':'Weather state unknown'}[tone],
-    detail: 'Wind suitability only. Yellow: tailwind ≥12 kt or crosswind ≥32 kt. Red: tailwind ≥15 kt or crosswind >40 kt. Missing data remains unknown.' };
+    detail: 'Wind suitability only. Yellow: tailwind ≥11 kt or crosswind ≥36 kt. Red: tailwind ≥15 kt or crosswind >40 kt. Missing data remains unknown.' };
 }
 export function demoDataset(now = new Date()): WindDataset {
   const start = now.getTime();
@@ -78,10 +80,12 @@ export const demoWindProvider: WindProvider = { load: async () => demoDataset() 
 export function frameAt(dataset: WindDataset, hour: number): WindFrame {
   if (hour === 0 && dataset.currentObservation) return dataset.currentObservation;
   const target = Date.parse(dataset.generatedAt) + Math.max(0, hour) * 3600000;
-  const index = dataset.frames.findIndex(frame => Date.parse(frame.validTime) >= target);
-  if (index >= 0 && Date.parse(dataset.frames[index].validTime) === target) return dataset.frames[index];
+  const frames=dataset.planningFrames?.length?dataset.planningFrames:dataset.frames;
+  const index = frames.findIndex(frame => Date.parse(frame.validTime) >= target);
+  if (index >= 0 && Date.parse(frames[index].validTime) === target) return frames[index];
   if (index <= 0) return { validTime: new Date(target).toISOString(), eastKt: null, northKt: null, gustKt: null, tailwindKt: null, crosswindKt: null, gustCrosswindKt: null, weatherState: 'unknown', probability: null };
-  const a = dataset.frames[index - 1], b = dataset.frames[index];
+  const a = frames[index - 1], b = frames[index];
+  if(Date.parse(b.validTime)-Date.parse(a.validTime)>Math.min(a.resolutionMinutes??60,b.resolutionMinutes??60)*60000*1.1)return {validTime:new Date(target).toISOString(),eastKt:null,northKt:null,gustKt:null,tailwindKt:null,crosswindKt:null,gustCrosswindKt:null,weatherState:'unknown',probability:null};
   const t = (target - Date.parse(a.validTime)) / (Date.parse(b.validTime) - Date.parse(a.validTime));
   const mix = (a: number | null, b: number | null) => a === null || b === null ? null : a + (b - a) * t;
   const eastKt = mix(a.eastKt, b.eastKt), northKt = mix(a.northKt, b.northKt), gustKt = mix(a.gustKt, b.gustKt);
@@ -110,7 +114,7 @@ export function adaptBackendSnapshot(input: unknown): WindDataset {
   const data = input as Record<string, unknown>;
   if (!['1.0','1.1'].includes(String(data.schema_version)) || !Array.isArray(data.forecast) || !Number.isFinite(Date.parse(String(data.generated_at)))) throw new Error('Unsupported or invalid forecast schema');
   const numeric = (value: unknown) => typeof value === 'number' && Number.isFinite(value) ? value : null;
-  const frames = data.forecast.map((value: unknown): WindFrame => {
+  const readFrame = (value: unknown): WindFrame => {
     if (!value || typeof value !== 'object') throw new Error('Invalid forecast point');
     const row = value as Record<string, unknown>;
     if (!Number.isFinite(Date.parse(String(row.valid_time)))) throw new Error('Invalid valid_time');
@@ -120,8 +124,11 @@ export function adaptBackendSnapshot(input: unknown): WindDataset {
     const od = prediction ? prediction.operating_direction : row.operating_direction;
     const winds = row.runway_wind as Record<string, Record<string, unknown>> | undefined;
     const runway = winds?.['18'];
-    return { validTime: String(row.valid_time), ...vector, gustKt: numeric(row.wind_gust_kt), tailwindKt: numeric(runway?.tailwind_kt), crosswindKt: numeric(runway?.crosswind_kt), gustCrosswindKt: numeric(runway?.gust_crosswind_kt), weatherState: row.rwy18_weather_state === 'usable' || row.rwy18_weather_state === 'not_usable' ? row.rwy18_weather_state : 'unknown', probability: numeric(row.p_rwy18_weather_usable), operatingDirection:od==='07'||od==='25'?od:null,directionBasis:typeof prediction?.basis==='string'?prediction.basis:'challenge_rules_raw_weather',directionCertainty:prediction?.basis==='independently_trained_od_model'?numeric(prediction.certainty_score):null };
-  });
+    return { validTime: String(row.valid_time), ...vector, gustKt: numeric(row.wind_gust_kt), tailwindKt: numeric(runway?.tailwind_kt), crosswindKt: numeric(runway?.crosswind_kt), gustCrosswindKt: numeric(runway?.gust_crosswind_kt), weatherState: row.rwy18_weather_state === 'usable' || row.rwy18_weather_state === 'not_usable' ? row.rwy18_weather_state : 'unknown', probability: numeric(row.p_rwy18_weather_usable), operatingDirection:od==='07'||od==='25'?od:null,directionBasis:typeof prediction?.basis==='string'?prediction.basis:'challenge_rules_raw_weather',directionCertainty:prediction?.basis==='independently_trained_od_model'?numeric(prediction.certainty_score):null,resolutionMinutes:row.resolution_minutes===15?15:60 };
+  };
+  const frames=data.forecast.map(value=>({...readFrame(value),resolutionMinutes:60}));
+  const planningFrames=Array.isArray(data.rwy18_weather_timeline)?data.rwy18_weather_timeline.map(readFrame):undefined;
+  if(planningFrames?.some((f,i)=>i>0&&Date.parse(f.validTime)<=Date.parse(planningFrames[i-1].validTime)))throw Error('Planning timeline must increase');
   if (!frames.length || frames.some((frame, index) => index > 0 && Date.parse(frame.validTime) <= Date.parse(frames[index - 1].validTime))) throw new Error('Forecast points must be nonempty and strictly increasing');
   const current = data.current_weather as Record<string, unknown> | null;
   let currentObservation: WindFrame | undefined;
@@ -136,7 +143,7 @@ export function adaptBackendSnapshot(input: unknown): WindDataset {
   const ops=data.observed_operations as Record<string,unknown>|undefined,change=data.next_operating_direction_change as Record<string,unknown>|undefined;
   const time=(v:unknown)=>typeof v==='string'&&Number.isFinite(Date.parse(v))?v:null;
   const quality=data.data_quality as Record<string,unknown>|undefined;
-  return { mode: 'live', generatedAt: String(data.generated_at), frames, spatialMode: 'uniform-airport', source: 'Airport point forecast', currentObservation,
+  return { mode: 'live', generatedAt: String(data.generated_at), frames, planningFrames, spatialMode: 'uniform-airport', source: 'Airport point forecast', currentObservation,
     operations:ops?{direction:ops.operating_direction==='07'||ops.operating_direction==='25'?ops.operating_direction:null,observedAt:time(ops.observed_at),since:time(ops.since),source:typeof ops.source==='string'?ops.source:'Reported operations'}:undefined,
     nextDirectionChange:change?{status:String(change.status??'unknown'),earliest:time(change.earliest),latest:time(change.latest)}:undefined,
     rawMetar:typeof current?.raw_metar==='string'?current.raw_metar:undefined,sourceErrors:Array.isArray(quality?.source_errors)?quality.source_errors.length:0 };

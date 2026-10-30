@@ -16,10 +16,12 @@ A future `position` object needs numeric `latitude`, `longitude`, `heading_deg_t
 
 ## Presentation
 
-Dashboard and map share the selected parallel runway and Live schedule / Design preview choice. Separate landing/departure cards show sample tailwind and gust crosswind, with thresholds **tailwind <10 kt for landing, <15 kt for departure; crosswind ≤40 kt including gusts**. Unknown gust or direction prevents a green result. Yellow is a visual caution at 80% of a limit. These are wind suitability states, not ATC clearance or official runway availability.
+Dashboard and map share the selected parallel runway and Live schedule / Design preview choice. Separate landing/departure cards show sample tailwind and gust crosswind, with thresholds **tailwind <10 kt for landing, <15 kt for departure; crosswind ≤40 kt including gusts**. Unknown gust or direction prevents a green result. Yellow is a visual caution from 4 kt below a limit (6 kt landing tailwind, 11 kt departure tailwind, 36 kt crosswind). These are wind suitability states, not ATC clearance or official runway availability.
 
 By default the next fresh, known, confirmed assigned flight selects the applicable limit and active status card. Its published board time selects exact/bracketing hourly forecast samples (or a next-hour proxy within one hour); probabilities are not interpolated, gaps are not extrapolated and matching endpoints do not establish continuous suitability. With no next assignment, both limits stay visible and current observed weather is shown on reported OD. The map forecast uses the exact assigned runway end when known, otherwise the backend hourly operating direction.
 
 Design preview is explicitly simulated and initially off. It provides illustrative assigned flights and moving aircraft for the three parallel runways; it demonstrates landing/departure automatic limits without pretending the public schedule has positions. Wind data remains the project forecast. Airport direction arrows continue to describe the challenge runway roles, rather than individual assignments.
 
 Antonio handoff: add independently sourced, timestamped confirmed runway assignments and ADS-B/ground positions to this contract. Verify provider coverage, update cadence and positions before enabling real map markers. Preserve nulls and source provenance until then.
+
+Runway 18 restriction planning now retains confirmed 18 departures in the shared adapter. The parallel-runway view still excludes them. See docs/frontend-wind.md for impact matching, draft alternatives and missing operational availability data.
