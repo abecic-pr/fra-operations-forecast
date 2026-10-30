@@ -1,14 +1,8 @@
-# Integration update — 30 October 2026
+# Shared knowledge snapshot
+
+Read-only repository copy of the shared FRA Operations Forecast Page, captured 30 October 2026 before the combined direction UI push. The live Page remains authoritative for collaboration updates: https://chatgpt.com/space/page_fe8b5e3a0f788191867be7f4e42de933
 
 ML/history update: recovered 182 days of DFLD 07/25 displays and trained `operations-v3` from 4,259 conservative stable-state point proxies. Recent DWD wind plus forecast-history features improve probability scores at 1/6/24 hours. Direction accuracy wins at 1 hour, ties at 24 hours, and trails the rules by one case at 6 hours; overall accuracy is 77.60% versus 74.72% for rules. These are exploratory results on a previously inspected period; exact switch labels and RWY18 rare-event skill remain unresolved. See [measured results and reproduction](ml-improvement.md). The model's first eligible hourly reference is 14:00 UTC / 15:00 Berlin, after its actual evidence cutoff. Source history is local; redistribution rights are unverified.
-
-The merge with main retains Philipp’s dashboard and verification alongside Antonio’s ML, comparison, flight assistant and submission tools. The wind adapter and forecast archive accept schemas 1.0 and 1.1 while retaining baseline field semantics. The dashboard bot now uses `/api/weather-bot` (plus `/status` and `/preview`); `/api/chat` preserves the existing flight assistant contract. The dated snapshot below predates this integration and is historical, including its pending-merge and endpoint statements. Challenge requirements remain those in `docs/challenge/README.md`, including airport-wide 07/25 forecasts.
-
-# Shared project knowledge snapshot
-
-Snapshot read 30 October 2026, after implementation commit 2ee9c04 was pushed. Canonical live knowledge base: https://chatgpt.com/space/page_fe8b5e3a0f788191867be7f4e42de933
-
-This is a dated reference snapshot; the app does not fetch the Page live. Read the live Page before major changes.
 
 Team hub for the FraAlliance challenge at AI Week Frankfurt, 30 October 2026. Build a 48-hour outlook for Frankfurt Airport operating direction 07/25 and Runway 18 weather suitability within a six-hour hackathon budget.
 
@@ -32,7 +26,7 @@ Antonio: connect the OpenAI bot from codex/design when ready, then verify a real
 
 # Current status
 
-Antonio's latest main commit a3a3f59 adds a wind ML pipeline and RWY18 departure-weather assessments. The local design branch copied his departure collector, contract and tests unchanged, added its GET route, and collected 102 upcoming services in a three-hour snapshot. The broader ML/schema 1.1 changes have not been merged or enabled in this UI; wind remains on its existing schema 1.0 adapter. The live weather integration, micro animations, dashboard and disconnected AI Weather Bot are now published on codex/design at 2ee9c04. Operational training/evaluation still needs independent labels. Status: 30 October 2026.
+Antonio’s main through 1aaf46e (forecast comparison and east/west runway outlook) has been merged into the local codex/design branch, preserving both contributors’ work. His backend comparison, independent-OD model path, coordinator and flight chatbot are included. The frontend accepts schema 1.0/1.1 and uses the new per-hour direction_forecast when supplied. Reported operations at Now and predicted movements during playback are labeled separately. The dashboard has a north-up OSM runway model; the map shows landing and departure arrows across the airport. Learned actual-OD probabilities still need independent historical labels; no confidence is invented. OpenAI remains disconnected for Antonio. Status: 30 October 2026; local checks complete, push being finalized.
 
 # Design handoff
 
@@ -40,13 +34,13 @@ Antonio's latest main commit a3a3f59 adds a wind ML pipeline and RWY18 departure
 
 ## Repository alignment
 
-The tested interface and disconnected AI backend are pushed to [codex/design](https://github.com/abecic-pr/fra-operations-forecast/tree/codex/design), implementation commit [2ee9c04](https://github.com/abecic-pr/fra-operations-forecast/commit/2ee9c040ec54a536fd3ab11adc17854c3f55b923). The branch retains Antonio’s original main history through 65a5fe5, plus his departure collector/contract/tests copied unchanged from a3a3f59. The broader main ML/schema 1.1 commit has not been merged; no merge into main has been performed. A documentation-only knowledge snapshot may follow this implementation commit.
+The combined airport-direction UI and Antonio main history through 1aaf46e are tested on codex/design and ready for the requested GitHub push. All 111 backend tests pass with the declared optional ML dependency installed in an isolated environment; frontend wind/direction checks and production build pass. Browser checks confirm the real map arrows, dashboard airport model, reported/forecast distinction, unavailable-direction gaps, timeline and map controls, with no console warnings or errors. No merge into main is performed. Antonio’s /api/chat is preserved; the dashboard visual assistant uses /api/weather-bot with its own status and preview routes. Verification and issued-forecast archiving remain intact; OpenAI remains disconnected.
 
 GitHub confirmed during push that aiw26 was renamed to fra-operations-forecast. The old URL redirects to the same repository. The local remote and README now use the confirmed name; there is no separate-repository mismatch.
 
 ## App and design decisions
 
-- **Dashboard:** Primary metrics are observed Runway 18 tailwind, gust crosswind and the next flagged forecast hour. Takeoff tailwind must remain below 15 kt; landing tailwind below 10 kt; crosswind above 40 kt including gusts exceeds the shared case limit. The stricter landing rule drives airport-wide 07/25 direction switches and does not create a landing mode on southbound-only Runway 18. The backend already implements these limits and >30-minute persistence; only the UI/data adapter was extended. Current observation KPIs remain fixed during forecast selection. A satellite map preview with wind animation and real RWY18 geometry opens the full map; selected-time components and peak next-six-hour tailwind sit beside it. Reported OD/source/since time, current landing tailwind and the baseline next direction change appear below. Three synchronized charts show RWY18 departure tailwind (15 kt), gust crosswind (40 kt) and landing tailwind on hourly forecast OD (10 kt). The 6/12/24/48h display window starts at forecast issue time; next flagged hour and peak next 6h use the actual clock. Raw source details and missing data are visible. Current/max/average total speed remain supporting metrics. Flights remain Unassigned unless the source provides actual assignments; OpenAI remains disconnected.
+- **Dashboard:** Primary metrics are observed Runway 18 tailwind, gust crosswind and the next flagged forecast hour. Takeoff tailwind must remain below 15 kt; landing tailwind below 10 kt; crosswind above 40 kt including gusts exceeds the shared case limit. The stricter landing rule drives airport-wide 07/25 direction switches and does not create a landing mode on southbound-only Runway 18. The backend already implements these limits and >30-minute persistence; only the UI/data adapter was extended. Current observation KPIs remain fixed during forecast selection. A satellite map preview with wind animation and real RWY18 geometry opens the full map; selected-time components and peak next-six-hour tailwind sit beside it. Reported OD/source/since time, current landing tailwind and the baseline next direction change appear below. Three synchronized charts show RWY18 departure tailwind (15 kt), gust crosswind (40 kt) and landing tailwind on hourly forecast OD (10 kt). The 6/12/24/48h display window starts at forecast issue time; next flagged hour and peak next 6h use the actual clock. Raw source details and missing data are visible. Current/max/average total speed remain supporting metrics. Flights remain Unassigned unless the source provides actual assignments; OpenAI remains disconnected. The dashboard now includes a compact north-up airport model using real OSM runway geometry. Landing arrows identify Northwest and South; departure arrows identify Centre and southbound-only RWY18. In OD07 all parallel movements point east (070°T); OD25 points west (250°T). The full map shows the same configuration with an Eastbound/Westbound badge and separate landing/departure key. Aircraft arrows are distinct from wind particles, never individual flight assignments or an official operational-status assertion. At Now the configuration comes from reported operations; forecast selection uses Antonio’s enriched per-hour direction and explicit method. Missing/disconnected directions suppress the parallel arrows; 18’s fixed physical direction remains south. Both landing and takeoff prefer headwind, with the brief’s permitted tailwind thresholds and landing-led switching rules unchanged.
 
 - **Apple design reference:** [Emil Kowalski's Apple Design skill](https://github.com/emilkowalski/skills/tree/main/skills/apple-design) was installed locally at Philipp's request. It is an independent skill, not an official Apple release, and is available automatically from the next turn. The KPI design applies system typography, size-specific spacing, restrained depth, shared scales and reduced-motion/contrast support. No app dependencies were added. Production build, wind/KPI calculations and browser review passed; no console warnings or errors were reported.
 
@@ -145,3 +139,17 @@ Quality reference: [DWD mean-wind measurement and quality documentation](https:/
 # Project pages
 
 Use the linked pages below for the active plan and detailed references.
+
+## Concurrent integration reconciled
+
+Antonio’s design-branch merge b5e8ab5 arrived during upload. Its `/api/weather-bot` dashboard contract and module name are retained alongside the separate `/api/chat` flight assistant. Its verification archive fix accepts additive schema 1.1 while preserving baseline components; its additional route and archive tests are retained. Airport direction visuals and enriched forecast adapter remain from this design increment.
+
+## Parallel runway traffic increment — 30 October 2026
+
+User clarified the new flight feature covers all parallel runways except RWY18. Added official FRA arrival/departure board collection and GET /api/traffic, searchable paginated flights, separate landing/departure wind cards, confirmed-next-flight limit selection and simulated plane preview. Initial collection: 993 arrivals and 1,051 departures, with no source runway assignments or aircraft coordinates. Live mode remains Unassigned and hides aircraft markers; preview is explicitly simulated. Antonio must add confirmed runway assignments, exact runway ends and fresh source-timestamped positions to docs/airport-traffic.md. Historical wind analysis and the new main presentation page are retained. Main upload is being finalized.
+
+Antonio’s hosting commit ad9fdda is also merged. Its Vercel/API changes and tile cleanup fix are preserved; traffic.json is added to the deployment snapshot allowlist. The final combined frontend build passes. No production deployment is performed by this chat; this handoff publishes the code to main.
+
+## Runway 18 priority restored — 30 October 2026
+
+Philipp corrected the interface hierarchy: Runway 18 is the central purpose of the software. The parallel-runway flight feature is supporting context, not a replacement. The dashboard again leads with Runway 18 KPIs, status and wind preview; Other runways & flights is a secondary expandable section. The map defaults to the original compact Runway 18 status panel and WindForecast chart (forecast, screened measurements, clock and playback), with its status-colored runway highlight and close framing. Other runways is available through an explicit optional map view. No forecasting rules, data sources or backend features are removed.

@@ -5,7 +5,7 @@ from pathlib import Path
 import shutil
 
 FILES = (
-    "forecast.json", "runway18-departures.json", "sources.json",
+    "forecast.json", "runway18-departures.json", "traffic.json", "sources.json",
     "comparison/evaluation.json", "comparison/forecast.json", "comparison/discovery.json",
     "comparison/agent.json",
     "models/icon-eu-wind-v1/manifest.json", "models/icon-eu-wind-v1/model.joblib",

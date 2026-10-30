@@ -147,9 +147,12 @@ def refresh(root, history_days=14, archive_days=7, labels_path=None, live_only=F
         write_csv(root / "training-dataset.csv", rows)
         report = dataset_report(rows, dwd, labels)
         write_json(root / "dataset-report.json", report)
-    write_json(root / "sources.json", {"checked_at": iso(datetime.now(UTC)), "sources": client.checks, "errors": errors})
     if include_departures:
         from .departures import refresh_departures
         attempt("RWY18 departure assessments",lambda:refresh_departures(root,forecast_snapshot=snapshot,progress=progress),None)
+    if include_departures:
+        from .traffic import refresh_traffic
+        attempt("airport arrivals and departures", lambda: refresh_traffic(root, now=now, client=client), None)
+    write_json(root / "sources.json", {"checked_at": iso(datetime.now(UTC)), "sources": client.checks, "errors": errors})
     progress(f"Saved {root / 'forecast.json'} ({snapshot['data_quality']['forecast_hours_available']}/48 forecast hours).", flush=True)
     return snapshot

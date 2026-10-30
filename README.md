@@ -6,7 +6,7 @@ Forecasting runway operating direction and Runway 18 weather suitability at Fran
 
 FRA Operations Forecast is a research prototype for the **FraAlliance challenge at AI Week Frankfurt 2026**. The project aims to turn weather observations and forecasts into a probabilistic outlook for airport operations over the next 48 hours.
 
-**Status:** Working weather ingestion and 48-hour forecast, validation-selected model comparison, GFS source comparison, discovery reports, optional AI coordinator, replay/export, and local JSON API. The one-page [model card](docs/model-card.md) records measured results and incomplete challenge deliverables. A learned 07/25 model now uses recovered DFLD history and recent DWD wind; its scores are provisional on stable display-derived point labels. See [the improvement report](docs/ml-improvement.md) for measured gains, 6/24 h accuracy regressions, and remaining switch-time limits. Philipp’s dashboard and map display baseline wind, provisional measurements and real departures.
+**Status:** Working weather ingestion, versioned challenge rules, 48-hour forecasts, model comparison, provisional learned 07/25 probabilities, optional AI coordinator, replay/export and local JSON API. The Runway 18 dashboard and default map show live wind, provisional measured-versus-forecast history and timeline playback; parallel-runway traffic remains supporting context. The [model card](docs/model-card.md) and [ML report](docs/ml-improvement.md) record measured results: 1-hour direction accuracy beats the rules, 24-hour accuracy ties, and 6-hour accuracy remains one case behind. Operating-history point labels and probabilities remain provisional; exact switch-time validation and RWY18 rare-event skill are unresolved.
 
 ## Run the frontend locally
 
@@ -26,7 +26,7 @@ python3 -m fra_forecast refresh --live-only --history-days 1 --archive-days 0
 python3 -m fra_forecast serve
 ```
 
-Only Runway 18 is highlighted. The blue chart line is forecast tailwind and the
+The map defaults to Runway 18 with its status highlight and original measured/forecast chart. Airport direction remains visible; Other runways opens the optional traffic view. The dashboard leads with Runway 18 operational indicators and its dedicated wind preview. The blue chart line is forecast tailwind and the
 green line is source-screened DWD measured tailwind, labeled provisional. The
 clock marker shows actual UTC time independently of forecast playback. The UI
 reads saved data every 30 seconds and requests fresh sources every 10 minutes
@@ -43,6 +43,8 @@ schema 1.0/1.1 adapter, controls, demo limitations and later API integration. Se
 [map data sources](public/data/README.md) for OSM and satellite attribution.
 Use separate branches and test locally before pushing; the shared project
 knowledge-base rule is in [AGENTS.md](AGENTS.md).
+
+**Status:** Working weather ingestion and 48-hour forecast, validation-selected model comparison, GFS source comparison, discovery reports, optional AI coordinator, replay/export, and local JSON API. The one-page [model card](docs/model-card.md) records measured results and incomplete challenge deliverables. Learned operating direction still needs independent historical labels; the training/inference/evaluation code is implemented and those live probabilities remain `null`. The teammate owns UI.
 
 ## Objective
 
@@ -211,7 +213,7 @@ The dashboard includes a project assistant with data lookups, forecast charts an
 
 To enable AI answers, add `OPENAI_API_KEY` to the ignored root `.env` file (see `.env.example`). The default backend model is `gpt-5-mini`; set `OPENAI_MODEL` to change it. Keep the key on the Python backend, never in VITE_ variables. The status refreshes automatically; no key is committed. A real OpenAI completion still needs account/model access and has not been tested without a key.
 
-See [AI Weather Bot setup and data contract](docs/ai-weather-bot.md) for source scope, limits and the `/api/weather-bot` endpoints. The existing `/api/chat` flight assistant remains separate. The model reasons internally and returns a short explanation with sources. Weather suitability and official runway closure remain distinct.
+See [AI Weather Bot setup and data contract](docs/ai-weather-bot.md) for source scope, limits and the `/api/weather-bot` endpoints. The model reasons internally and returns a short explanation with sources. Weather suitability and official runway closure remain distinct.
 
 ## Comparison demo and submission handoff
 
@@ -239,3 +241,9 @@ The one-page submission card is [available as PDF](output/pdf/model-card.pdf)
 with [editable Markdown](docs/model-card.md). Jury dates and issue format are
 absent from the brief: populate [the issue template](examples/jury-issues.csv)
 only with actual organizer inputs before running `export-submission`.
+
+## Parallel runway traffic
+
+The dashboard and map now include the three parallel runways, excluding RWY18 from the new flight feature. Arrival/departure schedules are searchable and paginated; separate wind-status cards automatically select the next confirmed assigned flight’s landing (10 kt) or departure (15 kt) tailwind limit. The public board has no assignments or aircraft coordinates, so live mode clearly shows Unassigned flights and no invented map positions. Design preview demonstrates simulated aircraft and assignments. See [the traffic contract and Antonio handoff](docs/airport-traffic.md).
+
+Collect the traffic snapshot with `python -m fra_forecast.traffic`; it is also included in normal weather refreshes. The server exposes it at `/api/traffic`.

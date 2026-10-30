@@ -20,7 +20,7 @@ The model reasons internally. The UI shows a truthful working state while the re
 
 ## Data scope
 
-The model receives a fresh catalog per question. Read-only `read_project_data` retrieves JSON, CSV, JSONL and Markdown under the configured data directory and docs, plus README. Sources include weather, baseline forecasts, checked provisional measurements, truly issued forecasts, operations snapshots, departures, diagnostics, future local model metrics, challenge-rule notes and a dated shared-knowledge snapshot. The shared Page is not fetched live by the app; update docs/shared-knowledge.md after collaboration changes. Raw binary/ZIP caches, model weights, environment files and arbitrary system paths are not exposed. Source provenance is available through the normalized source records. Missing artifacts stay unavailable. Main’s ML outputs remain additive; visual charts continue to show raw baseline values.
+The model receives a fresh catalog per question. Read-only `read_project_data` retrieves JSON, CSV, JSONL and Markdown under the configured data directory and docs, plus README. Sources include weather, baseline forecasts, checked provisional measurements, truly issued forecasts, operations snapshots, departures, diagnostics, future local model metrics, challenge-rule notes and a dated shared-knowledge snapshot. The shared Page is not fetched live by the app; update docs/shared-knowledge.md after collaboration changes. Raw binary/ZIP caches, model weights, environment files and arbitrary system paths are not exposed. Source provenance is available through the normalized source records. Missing artifacts stay unavailable; main's ML additions are not silently enabled here.
 
 Retrieval uses exact catalog IDs, bounded pages and character windows; callers can follow next_offset. A request caches every dataset it opens so a chart and the model use the same loaded forecast snapshot. At most seven model rounds and twelve tool calls are permitted. Document/data contents are reference material, not assistant instructions. A server-only key and project question/retrieved excerpts are sent to OpenAI; no secret file is included in the catalog.
 
@@ -38,6 +38,4 @@ Official implementation references:
 - [Reasoning models](https://developers.openai.com/api/docs/guides/reasoning)
 - [GPT-5 Mini capabilities](https://developers.openai.com/api/docs/models/gpt-5-mini)
 
-The implementation is `fra_forecast/weather_bot.py`. The existing `/api/chat`
-flight assistant keeps its original contract and `FRA_CHAT_MODEL` setting; see
-[chatbot.md](chatbot.md). The dashboard uses only the weather-bot routes above.
+Antonio’s tool-calling airport/flight assistant is preserved independently at `/api/chat`; see [its contract](chatbot.md). The dashboard retains the visual assistant contract at `/api/weather-bot`. Both remain disconnected without backend credentials.

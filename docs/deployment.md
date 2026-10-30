@@ -56,3 +56,5 @@ badge alone is not evidence of a successful OpenAI answer.
 Vercel excludes the local packaging-only `pyproject.toml` and installs
 `requirements.txt` under Python 3.14. Python dependencies pin scikit-learn to the saved model's version. If retraining
 changes that version, update `requirements.txt` together with the artifacts.
+
+The parallel-runway traffic feature adds `traffic.json` to the public snapshot allowlist. Run normal refresh (including arrivals/departures) before packaging, or run `python -m fra_forecast.traffic`. Confirmed assignments and aircraft coordinates are not available from the public passenger boards; production keeps these unknown.

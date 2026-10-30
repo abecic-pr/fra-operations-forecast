@@ -145,7 +145,7 @@ missing gusts, weather suitability, observed use, and official runway status.
 
 The local UI now uses the live API and requests refreshed sources every 10 minutes while visible, with read-only polling every 30 seconds and a manual refresh control. The API itself still performs no autonomous background polling.
 
-`GET /api/verification` returns screened provisional DWD station 01420 mean-wind observations and archived issued forecasts, supporting `/api/forecast` schemas 1.0 and 1.1. The archive is `data/issued-forecasts.jsonl`. Only predictions valid after actual archive time are saved; past values are not backfilled. The green trace requires source/hash, station, timestamp, finite-value and QN 2/3 checks. These measurements remain provisional. See [frontend wind integration](frontend-wind.md) for comparison rules and refresh behavior.
+`GET /api/verification` returns screened provisional DWD station 01420 mean-wind observations and archived issued forecasts, while accepting additive `/api/forecast` schemas 1.0 and 1.1. The archive is `data/issued-forecasts.jsonl`. Only predictions valid after actual archive time are saved; past values are not backfilled. The green trace requires source/hash, station, timestamp, finite-value and QN 2/3 checks. These measurements remain provisional. See [frontend wind integration](frontend-wind.md) for comparison rules and refresh behavior.
 
 `POST /api/chat` adds read-only airport/flight questions using a backend OpenAI key.
 It has its own response schema and leaves the existing forecast/departure outputs
@@ -222,10 +222,7 @@ issue, with source/model metadata and null learned OD when unavailable.
 `report.json` carries coverage, artifact/data identities, availability assumptions,
 and `jury_schema_confirmed: false`; `incomplete` is not submission-ready.
 
-The dashboard chart/map assistant uses `/api/weather-bot`, `/api/weather-bot/status`,
-and `/api/weather-bot/preview`; see [its contract](ai-weather-bot.md).
-Its response format is separate from the unchanged `/api/chat` flight assistant.
-
+The merged visual dashboard assistant is preserved separately at `/api/weather-bot`, `/api/weather-bot/status` and `/api/weather-bot/preview`; Antonio’s `/api/chat` contract is unchanged. Both use backend-only credentials and remain disconnected when no key is configured.
 
 ### 07/25 history and model update, 30 October 2026
 

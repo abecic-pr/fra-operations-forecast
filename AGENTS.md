@@ -9,7 +9,7 @@ https://chatgpt.com/space/page_fe8b5e3a0f788191867be7f4e42de933
 - If the Page cannot be read, state that the knowledge check could not be completed; do not assume it is unchanged. Continue independent work where possible.
 - After major work, update the relevant knowledge-base section with the resulting decisions, implementation status, local verification and open handoff items. Preserve Antonio's unrelated updates.
 - Philipp owns design; Antonio gathers data. Test changes on localhost before pushing to GitHub.
-- The connected repository is `abecic-pr/fra-operations-forecast` (renamed from `aiw26`; confirmed by GitHub during push). Antonio's backend is on `main`; UI work is on `codex/design`. The user has requested live integration: the local UI now uses the live API. Green measurements require source/hash, station, time and QN 2/3 checks, and remain labeled provisional. Preserve backend schema 1.0 and never invent historical forecast matches.
+- The connected repository is `abecic-pr/fra-operations-forecast` (renamed from `aiw26`; confirmed by GitHub during push). Antonio's backend is on `main`; UI work is on `codex/design`. The user has requested live integration: the local UI now uses the live API. Green measurements require source/hash, station, time and QN 2/3 checks, and remain labeled provisional. Support backend schemas 1.0 and 1.1 and never invent historical forecast matches.
 
 # Hackathon working agreement
 
@@ -65,3 +65,7 @@ wants that constraint respected throughout the project, including future chats.
 - Preserve other contributors' work. Do not implement UI unless asked.
 
 Research: `docs/izvori-podataka.md` and `docs/podaci-aplikacije.md`.
+
+## Parallel runway traffic scope
+
+Philipp clarified on 30 October 2026 that the new next-plane landing/departure feature covers all three parallel runways, excluding RWY18. Runway 18 remains the primary focus of the software, dashboard and default map. The parallel-runway flight feature is supporting context and must not displace its forecast graph or status panel. Traffic assignments and positions must be independently supplied; never infer them from the airport-wide operating direction or schedule. See docs/airport-traffic.md.
