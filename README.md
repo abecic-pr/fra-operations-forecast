@@ -1,40 +1,119 @@
-# aiw26
+# FRA Operations Forecast
 
-Frankfurt Airport operating direction and Runway 18 forecast for AI Week 2026.
+Forecasting runway operating direction and Runway 18 weather suitability at Frankfurt Airport.
 
-Philipp owns design; Antonio gathers data. Read [the case notes](docs/CASE.md) for the targets, wind-rule baseline, evaluation requirements and proposed data handoff.
+FRA Operations Forecast is a research prototype for the **FraAlliance challenge at AI Week Frankfurt 2026**. The project aims to turn weather observations and forecasts into a probabilistic outlook for airport operations over the next 48 hours.
 
-## Run locally
+**Status:** Public weather ingestion, a versioned challenge-rule baseline, 48-hour JSON output, a historical dataset export, and a local JSON API. The Runway 18 frontend provides Dashboard and Map modes with an animated wind layer, timeline playback and shared dynamic demo data. Live UI integration remains pending; the temporary data-preview UI has been removed. Machine-learning training remains to be implemented. Baseline probabilities are `null`; independent historical operating labels are still needed for model evaluation.
 
-Use Node.js 22.12+ (or 20.19+) and npm.
+## Run the frontend locally
+
+Use Node.js 22.12+ or 20.19+.
 
 ```sh
 npm ci
 npm run dev
 ```
 
-Open http://localhost:5173. The server is bound to this computer only. The current React + TypeScript page is a starting point with empty states; it has no weather feed or trained model.
-
-Switch between **Dashboard** (forecast summary) and **Map view** (full-screen interactive map). Direct map link: http://localhost:5173/#map. The map defaults to Esri satellite imagery with real OpenStreetMap airport overlays; a street-map option is available in Map layers. It supports panning, zoom, runway selection and airport boundary / runway / terminal toggles. It requires internet for base-map tiles; the airport overlay is a bundled OSM extract. See [map data sources](public/data/README.md).
-
-The floating panels show selected-runway status and a tailwind chart with 12/24/48-hour horizons. Forecasts remain empty until connected. **Preview sample** displays explicitly illustrative values for design review; it does not alter actual runway status. The case brief's 15 kt departure and 10 kt landing tailwind limits are chart references; crosswind including gusts is shown separately. This UI does not yet calculate wind components, predict availability, or connect to a backend.
-
-Before pushing, check the production build:
+Open http://127.0.0.1:5173/ or the map at http://127.0.0.1:5173/#map.
+The frontend currently uses explicitly labeled synthetic wind data. It does not
+request the backend or refresh live providers. Only Runway 18 is highlighted.
+The color layer shows total wind speed; the chart shows departure tailwind.
+Map, chart and summary share the same forecast time.
 
 ```sh
+npm run check:wind
 npm run build
-npm run preview
 ```
 
-Preview is at http://localhost:4173. Stop either server with Ctrl+C.
+See [frontend wind integration](docs/frontend-wind.md) for the provider boundary,
+schema 1.0 adapter, controls, demo limitations and later API integration. See
+[map data sources](public/data/README.md) for OSM and satellite attribution.
+Use separate branches and test locally before pushing; the shared project
+knowledge-base rule is in [AGENTS.md](AGENTS.md).
 
-## Work together
+## Objective
 
-Use separate branches, for example `codex/design` and `codex/data`. Pull the latest `main` before starting a branch; commit and push your own branch, then merge through a pull request. Check the combined changes locally after merging.
+Develop and evaluate a machine-learning model that predicts:
 
-- UI: `src/`
-- Shared requirements and data handoff: `docs/CASE.md`
-- Large local data downloads: `data/raw/` (ignored)
-- Private data: `data/private/` (ignored)
+- **Operating direction:** whether Frankfurt is expected to use direction 07 (eastbound) or 25 (westbound).
+- **Runway 18 suitability:** the probability that wind conditions allow departures from Runway 18 West.
+- **Upcoming changes:** the next likely operating-direction change and its uncertainty.
 
-Commit `package-lock.json` when dependencies change; use `npm ci` after pulling those changes. Do not commit secrets, `node_modules`, build output or large raw datasets. Nothing is deployed automatically by this starter.
+The model should improve on the weather-rule baseline defined in the challenge brief.
+
+## Planned forecast outputs
+
+| Output | Description |
+| --- | --- |
+| Hourly outlook | Predictions for each hour through a 48-hour horizon |
+| Operating direction | Predicted 07/25 direction and associated probabilities |
+| Runway 18 suitability | Probability of suitable wind conditions for departures |
+| Change outlook | Expected timing or time window of the next direction change |
+| Wind conditions | Wind speed, direction, gusts, and runway-relative components |
+| Data freshness | Observation time, forecast issue time, and source information |
+
+Weather suitability and observed runway use are separate concepts. A period without departures does not by itself establish that a runway was unavailable.
+
+## Data approach
+
+The planned dataset combines airport weather observations, archived weather forecasts, and recorded operating-direction or runway-use data. Candidate weather sources include:
+
+- [DWD Open Data](https://opendata.dwd.de/) for station observations and numerical forecasts.
+- [Aviation Weather Center](https://aviationweather.gov/data/api/) for EDDF METAR and TAF reports.
+- [Open-Meteo](https://open-meteo.com/en/docs) for forecast access, including [individual archived model runs](https://open-meteo.com/en/docs/single-runs-api).
+
+Each record should preserve its source, units, observation or valid time, and the time it became available. Final source selection, coverage, and limitations will be documented alongside the implementation.
+
+## Evaluation
+
+Evaluate forecasts on held-out periods at **1-hour, 6-hour, and 24-hour lead times**. Only information available when each forecast would have been issued may be used as input.
+
+Compare the model with the challenge's rule-based baseline and a persistence baseline. Report classification performance, probability calibration, and change-timing error where reliable reference labels are available.
+
+## Working with the repository
+
+```bash
+git clone https://github.com/abecic-pr/aiw26.git
+cd aiw26
+```
+
+Python 3.11 or newer is required. The current backend uses only the standard library.
+
+```bash
+# Current observations and 48-hour forecast; requires internet access.
+python3 -m fra_forecast refresh --live-only
+
+# Also collect 14 days of observations and seven archived daily forecast runs.
+python3 -m fra_forecast refresh
+
+# Run focused offline checks.
+python3 -m unittest discover -s tests -v
+
+# Serve forecast JSON at http://127.0.0.1:8000/api/forecast.
+python3 -m fra_forecast serve
+```
+
+Outputs are written to the ignored `data/` directory. The teammate can consume
+`data/forecast.json`; its contract is documented in [docs/backend-data.md](docs/backend-data.md).
+The API exposes saved forecasts and source diagnostics, plus a manual refresh
+endpoint. It serves no HTML or static UI assets. It binds only to `127.0.0.1`;
+choose a different port with `serve --port 8001`. The teammate's frontend can
+proxy `/api/*` to this server; see the integration notes in the data contract.
+
+Brand assets and illustrative design references are in [branding/](branding/README.md).
+
+Supply independently verified labels with `--labels path/to/operations.csv`,
+using the header in [examples/operations-labels.csv](examples/operations-labels.csv).
+The template intentionally contains no invented records. Historical forecast
+publication times currently use a clearly marked four-hour estimate, so this
+dataset is not yet evidence of leakage-free model accuracy.
+
+The six-hour hackathon constraint and division of work are recorded in
+[AGENTS.md](AGENTS.md). The teammate owns UI; backend work prioritizes runnable increments.
+
+## Project context
+
+Built for **AI Week Frankfurt, 30 October 2026**, based on the FraAlliance brief *Frankfurt Airport Operating Direction Forecast*.
+
+The prototype is intended for research and demonstration. Its predictions are not operational air traffic control instructions.

@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 256" width="960" height="256" role="img" aria-label="FRA Operations Forecast concept lockup">
+<title>FRA Operations Forecast — concept lockup, live type</title>
+<g transform="translate(4 8) scale(.92)">
+  <path fill="#17191D" d="M48 212V84C48 48 72 28 108 28H224L188 64H112C94 64 84 72 84 90V108H196L160 144H84V212Q84 216 80 216H52Q48 216 48 212Z"/>
+
+</g>
+<text x="292" y="126" font-family="Helvetica Neue, Arial, sans-serif" font-size="82" font-weight="500" letter-spacing="-3" fill="#17191D">FRA</text>
+<text x="296" y="180" font-family="Helvetica Neue, Arial, sans-serif" font-size="32" font-weight="400" letter-spacing=".1" fill="#17191D">Operations Forecast</text>
+</svg>
