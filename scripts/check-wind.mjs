@@ -144,3 +144,24 @@ assert.equal(traffic.demoTraffic(trafficNow,'25').flights.every(f=>f.position===
 console.log('Traffic checks passed: confirmed-only next flight, stale data, runway 18 exclusion, missing direction, and preview movement.');
 
 assert.equal(traffic.adaptTraffic({...trafficSnapshot,flights:[{...flight,assigned_runway:'18',assignment_status:'confirmed'}]}).flights.length,0);
+
+// A complete zero forecast must stay distinct from partial or absent weather/direction.
+const headwindForecast={...demo,frames:demo.frames.map(f=>({...f,...w.vectorFromWind(8,70),operatingDirection:'07'}))};
+for(const horizon of [12,24,48]){
+  const outlook=w.parallelTailwindForecast(headwindForecast,horizon);
+  assert.equal(outlook.count,horizon);
+  assert.equal(outlook.complete,true);
+  assert.equal(outlook.peak,0);
+}
+close(w.parallelTailwindForecast(headwindForecast,12,'25R').peak,8);
+assert.equal(w.parallelTailwindForecast({...headwindForecast,generatedAt:'2026-10-30T10:26:00Z'},12).count,12);
+const partial=w.parallelTailwindForecast({...headwindForecast,frames:headwindForecast.frames.map((f,i)=>i===2?{...f,eastKt:null}:f)},12);
+assert.equal(partial.count,11);
+assert.equal(partial.complete,false);
+assert.equal(partial.points[1].tail,null);
+assert.equal(w.parallelTailwindForecast({...headwindForecast,frames:headwindForecast.frames.filter((_,i)=>i!==2)},12).complete,false);
+const noDirection={...headwindForecast,frames:headwindForecast.frames.map(f=>({...f,operatingDirection:null}))};
+assert.equal(w.parallelTailwindForecast(noDirection,12).peak,null);
+assert.equal(w.parallelTailwindForecast(noDirection,12,'07L').complete,true);
+assert.equal(w.parallelTailwindForecast({...headwindForecast,frames:[]},12).peak,null);
+console.log('Parallel forecast checks passed: zero/headwind, assigned direction, horizons and missing coverage.');
