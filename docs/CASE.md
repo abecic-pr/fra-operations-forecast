@@ -55,3 +55,7 @@ No API or model has been implemented yet.
 Use a held-out chronological period, with only information available at each forecast issue time. Compare the model and the rule baseline on identical cases at 1 h, 6 h and 24 h lead times. Agree on probability and classification metrics, report sample sizes and missing-label coverage. Do not invent quality scores.
 
 The brief asks for the repository, a one-page model card (sources, evaluation, forecast drivers), and forecasts for jury test days.
+
+## Current UI scope
+
+The current design focuses only on Runway 18. Its map, tailwind chart and summary use a shared, explicitly synthetic dataset with animated wind particles, a wind-speed color layer, 12/24/48-hour controls and forecast playback. The backend still retains its full challenge outputs. See `docs/frontend-wind.md` for the inactive schema 1.0 adapter and the distinction between synthetic spatial wind and an airport point forecast.

@@ -74,8 +74,8 @@ Compare the model with the challenge's rule-based baseline and a persistence bas
 ## Working with the repository
 
 ```bash
-git clone https://github.com/abecic-pr/aiw26.git
-cd aiw26
+git clone https://github.com/abecic-pr/fra-operations-forecast.git
+cd fra-operations-forecast
 ```
 
 Python 3.11 or newer is required. The current backend uses only the standard library.
