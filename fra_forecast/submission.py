@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 from .dataset import load_labels, label_at
-from .domain import UTC, FEATURE_NAMES, RULESET, DirectionState, iso, parse_time
+from .domain import UTC, RULESET, DirectionState, iso, parse_time
 from .ml_data import uv
 from .ml_live import load_artifact
 from .sources import SourceClient, forecast, write_csv, write_json
@@ -96,7 +96,7 @@ def replay(reference, data_dir, client, labels=()):
         identities = [legacy["model_version"]]*48
     else:
         reasons.append("no_eligible_wind_probability_artifact_before_issue")
-    operations, operations_report, operations_error = load_artifact(data_dir, operations_ml.MODEL_VERSION, FEATURE_NAMES)
+    operations, operations_report, operations_error = load_artifact(data_dir, operations_ml.MODEL_VERSION, operations_ml.FEATURE_NAMES)
     if not eligible_artifact(operations, operations_report, reference):
         operations = None
         reasons.append("no_eligible_independent_label_od_artifact_before_issue")
@@ -104,6 +104,8 @@ def replay(reference, data_dir, client, labels=()):
         artifacts["operations"] = {k: operations_report.get(k) for k in ("model_version", "experiment_id", "data_cutoff", "trained_at", "labels_sha256", "dataset_sha256")}
     label = label_at(labels, reference, known_by=reference)
     initial = label["operating_direction"] if label and label["operating_direction"] in ("07", "25") else None
+    recent = operations_ml.recent_observation(data_dir, reference)
+    context = operations_ml.forecast_context([source.get(stamp, {"valid_time": stamp}) for stamp in targets], reference)
     baseline = DirectionState(initial)
     selected_direction = DirectionState(initial)
     if iso(reference) in source:
@@ -112,7 +114,7 @@ def replay(reference, data_dir, client, labels=()):
     for i, stamp in enumerate(targets):
         raw = source.get(stamp, {"valid_time": stamp})
         rule = baseline.step(raw, 60)
-        od = operations_ml.predict(operations, raw, initial, i+1) if operations else {
+        od = operations_ml.predict(operations, {**raw, **context.get(stamp, {})}, initial, i+1, recent) if operations else {
             "status": "unavailable", "reason": "no_eligible_independent_label_od_artifact_before_issue",
             "operating_direction": None, "p_od07": None, "p_od25": None, "certainty_score": None}
         selected_rule = selected_direction.step({"valid_time": stamp, **weather[i]}, 60)
@@ -132,13 +134,16 @@ def replay(reference, data_dir, client, labels=()):
                        "operating_direction": od["operating_direction"], "p_od07": od["p_od07"], "p_od25": od["p_od25"],
                        "certainty_score": od["certainty_score"], "od_status": od["status"],
                        "od_probability_status": od.get("probability_status", "unavailable"),
+                       "od_label_quality": od.get("label_quality"),
+                       "od_recent_observation_time": od.get("recent_observation_time"),
                        "baseline_operating_direction": rule["operating_direction"],
                        "baseline_rwy18_weather_state": rule["rwy18_weather_state"],
                        "wind_model": identities[i], "od_model": operations_ml.MODEL_VERSION if operations else None,
                        "source_model": "icon_eu", "model_run_at": iso(run_at),
                        "available_at": raw.get("available_at"), "fetched_at": raw.get("fetched_at"),
                        "availability_verified": False, "availability_basis": "estimated_four_hour_model_delay"})
-    change = next_change(result, "operating_direction", initial)
+    timeline = [{"valid_time": p["valid_time"], "direction": p["operating_direction"] if p["od_status"] == "available" else None} for p in result]
+    change = next_change(timeline, "direction", initial)
     change["method"] = "predicted_hourly_class_change"
     if change["status"] == "change_expected" and change["earliest"] is None and initial:
         change["earliest"] = iso(reference)
@@ -146,7 +151,7 @@ def replay(reference, data_dir, client, labels=()):
         row.update(next_change_status=change["status"], next_change_earliest=change["earliest"], next_change_latest=change["latest"])
     counts = {"wind_hours": sum(p["wind_speed_kt"] is not None for p in result),
               "rwy18_probability_hours": sum(p["p_rwy18_weather_usable"] is not None for p in result),
-              "od_probability_hours": sum(p["p_od07"] is not None for p in result)}
+              "od_probability_hours": sum(p["od_status"] == "available" and p["p_od07"] is not None for p in result)}
     return result, {"forecast_reference_time": iso(reference), **counts, "source_error": source_error,
                     "status": "complete_with_availability_assumptions" if all(n == 48 for n in counts.values()) else "incomplete",
                     "reasons": reasons, "next_change": change, "artifacts": artifacts,

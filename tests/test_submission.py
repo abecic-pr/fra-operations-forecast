@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 from fra_forecast.domain import iso, parse_time
 from fra_forecast.sources import write_csv
-from fra_forecast.submission import eligible_artifact, export, issue_times
+from fra_forecast.submission import eligible_artifact, export, issue_times, replay
 
 START = parse_time("2026-10-20T12:00:00Z")
 
@@ -69,3 +69,16 @@ class SubmissionTests(unittest.TestCase):
             self.assertEqual(report["rows"], 48)
             self.assertEqual(report["issues"][0]["wind_hours"], 0)
             self.assertEqual(report["issues"][0]["source_error"], "offline")
+
+    def test_experimental_od_does_not_publish_a_change(self):
+        model = {"data_cutoff": iso(START-timedelta(days=1))}
+        def prediction(artifact, weather, initial, lead, recent):
+            return {"status": "experimental", "operating_direction": "07" if lead < 5 else "25",
+                    "p_od07": .7 if lead < 5 else .3, "p_od25": .3 if lead < 5 else .7, "certainty_score": .7}
+        with TemporaryDirectory() as folder, patch("fra_forecast.submission.forecast", side_effect=forecast_fixture), patch(
+                "fra_forecast.submission.load_artifact", side_effect=[(None, {}, None), (None, {}, None), (model, {}, None)]), patch(
+                "fra_forecast.submission.operations_ml.predict", side_effect=prediction):
+            rows, report = replay(START, folder, Client())
+        self.assertEqual(report["od_probability_hours"], 0)
+        self.assertNotEqual(report["next_change"]["status"], "change_expected")
+        self.assertTrue(all(r["expected_operating_direction"] == "25" for r in rows))

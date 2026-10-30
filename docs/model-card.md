@@ -1,37 +1,37 @@
 # FRA Operations Forecast - model card
 
-30 October 2026 | Hackathon research demo | Partial challenge completion
+30 October 2026 | Research demo | Conditional OD probability improvement; partial challenge completion
 
-## Purpose and outputs
+## Purpose and models
 
-48 hourly forecasts of Frankfurt wind and provisional RWY18 weather usability. The separate Section 3 baseline predicts airport-wide 07/25 and change windows. Learned actual OD, certainty, and change accuracy remain unavailable without independent historical labels. Weather suitability is not official runway status or actual use.
+48 hourly wind, RWY18 weather-usability probability, airport-wide 07/25 and certainty, and hourly change windows. Wind: validation-selected Ridge correction of ICON-EU u/v/gust. OD: equal probability blend of two balanced logistic classifiers. Both use forecast components, gust/missing flag, horizon, available initial OD and one-hour-old DWD wind/gust. The second adds runway-aligned wind, six-hour recency decay, UTC hour cycles and trailing 3/6-hour forecast winds. Train-only preprocessing; two purged development splits select the blend. RWY18 uses 256 joint residual draws. Weather suitability is distinct from official status or use.
 
-## Model and key drivers
+## Sources and label quality
 
-Validation selected Ridge residual correction (alpha=1) over raw ICON-EU, boosting, and a fixed equal blend; observation persistence is a reference. Inputs: raw u/v wind, gust and missing indicator, model lead, UTC hour and season. Train-only imputation/scaling; no importance ranking claimed. RWY18 probabilities resample 256 joint residual draws from separate calibration pools. The optional AI coordinator explains the frozen selection; it cannot change numeric weights.
+[Open-Meteo ICON-EU runs](https://open-meteo.com/en/docs/single-runs-api); [DWD 01420 wind/gust](https://opendata.dwd.de/climate_environment/CDC/observations_germany/climate/10_minutes/); [DFLD actual direction based on Fraport](https://www.dfld.de/Mess/Language/MessHelpG.html). Live context: [AWC EDDF](https://aviationweather.gov/data/api/) and [UNH/DFS direction](https://www.umwelthaus.org/fluglaerm/anwendungen-service/aktuelle-betriebsrichtung-und-prognose/). [Open-Meteo GFS](https://open-meteo.com/en/docs/gfs-api) remains an unranked comparison source.
 
-## Sources and time design
+Recovered 182 days / 8,736 half-hour direction displays, Apr 30-Oct 29. Retained 4,259 hourly points only where adjacent display categories agree. These are provisional stable-state proxies, not exact switch intervals. Europe/Berlin alignment checked against METAR; Oct 25 DST day excluded. Source sampling instant is unverified; transition filtering makes the evaluation subset easier. History remains local, with retrieval times and hashes; redistribution rights unverified.
 
-[Open-Meteo explicit ICON-EU runs](https://open-meteo.com/en/docs/single-runs-api) supply forecast inputs; [DWD station 01420](https://opendata.dwd.de/climate_environment/CDC/observations_germany/climate/10_minutes/) supplies 10-minute wind and preceding-hour maximum gust targets. Live context: [AWC EDDF METAR](https://aviationweather.gov/data/api/) and [UNH/DFS current OD](https://www.umwelthaus.org/fluglaerm/anwendungen-service/aktuelle-betriebsrichtung-und-prognose/). [GFS via Open-Meteo](https://open-meteo.com/en/docs/gfs-api) passed four 96-hour probes but has no ranked historical evaluation. Source retrieval metadata and hashes are saved.
+## Time design and probability limits
 
-Issue-date partitions (2026): train Apr 30-Aug 15; selection Aug 16-Sep 02; calibration Sep 03-20; test Sep 21-Oct 26, targets through Oct 29. Earlier targets crossing the next partition were purged (1,224 rows). Selection used 3,248 matched 1-48 h cases. Historical forecast availability assumes four hours for ICON-EU, six for GFS; observations assume one hour. Publication history and later DWD corrections are unverified.
+Issue partitions: train Apr 30-Aug 15; selection Aug 16-Sep 2; calibration Sep 3-20; test Sep 21-Oct 26, with overlapping targets purged. ICON publication assumes +4 h; DWD +1 h. Historical publication and later revisions are unverified. Retrieved historical OD is target-only, never backdated as initial state. Calibration's forward check lacks eastbound cases: OD probabilities remain uncalibrated. Certainty is max(class probability), not verified reliability.
 
-## Measured quality - lower scores are better
+## Measured 07/25 quality
 
-Validation vector RMSE: raw 5.517 -> selected 4.377 kt; gust MAE: 3.751 -> 3.019 kt. Below: previously inspected test period, explicitly exploratory; 144 cases per horizon. Wind errors are knots. RWY18 Brier is compared with Section 3 on the same cases.
+Validation (3,199 cases): accuracy 92.53% -> 95.75%; balanced accuracy 92.60% -> 93.43%; Brier 0.07471 -> 0.03872. Earlier purged training check: accuracy 89.39% -> 93.84%. Below: inspected later period, explicitly exploratory; same stable-label cases. Higher accuracy / lower Brier is better.
 
-| Lead | Raw vector RMSE | Selected vector RMSE | Selected gust MAE | Selected RWY18 Brier | Section 3 Brier |
+| Lead | Cases | Rule accuracy | ML accuracy | Rule Brier | ML Brier |
 | --- | --- | --- | --- | --- | --- |
-| 1 h | 4.232 | 2.951 | 2.473 | 0.000016 | 0.000000 |
-| 6 h | 4.489 | 3.005 | 2.704 | 0.006957 | 0.006944 |
-| 24 h | 4.518 | 3.209 | 2.680 | 0.006997 | 0.006944 |
+| 1 h | 135 | 71.9% | 78.5% | 0.2815 | 0.1884 |
+| 6 h | 134 | 78.4% | 77.6% | 0.2164 | 0.1853 |
+| 24 h | 134 | 76.1% | 76.1% | 0.2388 | 0.1933 |
 
-Across 1-48 h: selected Brier 0.001195 vs always-usable 0.001157 (6,912 cases); matched Section 3 comparison 0.001197 vs 0.001159 (6,902 cases). Eight adverse forecast cases represent only ONE distinct adverse timestamp; all were missed at probability threshold 0.5, with zero false warnings. No reliable rare-event calibration or operational baseline improvement is established. Actual-OD accuracy and change timing cannot yet be scored.
+All 1-48 h (6,500 cases, 854 distinct targets): accuracy 74.72% -> 77.60%; balanced accuracy 74.79% -> 77.85%; Brier 0.25277 -> 0.18763. Probability scores improve at 1/6/24 h; 24 h accuracy ties; 6 h is one case behind (104 versus 105 correct). Initial-state persistence and exact switch timing are unscored because independent as-of states / exact intervals are absent.
 
-## Limits and delivery status
+## Wind, RWY18 and remaining delivery
 
-Probabilities: provisional_low_event_coverage. Hourly inputs cannot resolve exact >30-minute persistence or within-hour reversals; missing gusts stay missing. Correction candidates share ICON-EU inputs and are correlated. Season/generalization and untouched holdout performance remain unverified. The brief does not supply jury dates, issue times, or file schema. Replay/export works: an internal demo issue produced 48 weather rows, null learned OD, and an explicit incomplete report. Agent provider execution requires configuration and is unverified. This is not an operational aviation system.
+Wind vector RMSE at 1/6/24 h: raw 4.232/4.489/4.518 -> Ridge 2.951/3.005/3.209 kt (144 cases each). RWY18 Brier at those leads: 0.000016/0.006957/0.006997 vs rules 0/0.006944/0.006944. All-hour matched Brier 0.001197 vs rules 0.001159; one distinct adverse timestamp, eight forecast cases, all missed at threshold 0.5. Rare-event skill is not established. Next change uses hourly class crossings; exact >30-minute persistence / within-hour reversals remain unresolved. Fresh holdout, precise switch labels, and jury dates/schema are outstanding.
 
 ## Reproducibility
 
-Rules: fraalliance-2026-v1 (landing 10 kt, departure 15 kt, crosswind >40 kt, persistence >30 min). Model: wind-comparison-v1; experiment ed131c7b15d7291b15a5; scikit-learn 1.9.1. Dataset SHA-256: 66fe17ae25c62ea2fda4031a678e4bfe379f27a268ea98dc4dfd56098aa2de1b. Frozen artifacts, source metadata, reports and dataset are in the local demo bundle; commands and full identities are in docs/model-comparison.md. Model fitting/selection/calibration cutoff: 2026-09-21 00:00 UTC.
+Rules fraalliance-2026-v1: landing 10 kt, departure 15 kt, crosswind >40 kt, persistence >30 min. Wind wind-comparison-v1; OD operations-v3 / `277d8d037ca31002de2e`; scikit-learn 1.9.1. OD evidence cutoff `2026-10-30T13:39:14Z`; earlier replay excludes it. Code, commands, hashes, full metrics and limitations: docs/ml-improvement.md. The earlier delivery ZIP predates this OD extension.

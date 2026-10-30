@@ -6,6 +6,8 @@ Prepared 30 October 2026; originally audited against the PDF, code, artifacts, a
 
 **0. PDF and code audit: what exists and what remains**
 
+**Later ML/history update:** The earlier label blocker is partly resolved: DFLD yielded 182 days of actual-direction displays and 4,259 provisional stable-state point proxies. `operations-v2` now trains and evaluates a recent-observation classifier. Probability scores improve at 1/6/24 hours on the inspected later period; 6/24-hour classification does not. Exact switch labels, a fresh holdout and RWY18 event coverage remain gaps. The [current ML report](ml-improvement.md) supersedes the earlier implementation-status sentence above; this audit table remains historical.
+
 | PDF requirement (page 1) | Verified current implementation | Remaining work |
 | --- | --- | --- |
 | Hourly forecasts through 48 h, section 4.1 | Implemented by `pipeline.live_snapshot()` and `ml_live.enrich()`; the inspected saved snapshot has 48 hours | Preserve alignment and provenance; reuse this output grid |

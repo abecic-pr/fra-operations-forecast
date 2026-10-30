@@ -1,11 +1,12 @@
 from datetime import timedelta
+import math
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
 from unittest.mock import patch
 
 from fra_forecast.domain import iso, parse_time
-from fra_forecast.operations_ml import change_scores, evaluate, labeled_rows, train, predict
+from fra_forecast.operations_ml import change_scores, evaluate, labeled_rows, train, predict, recent_observation, historical_recent, forecast_context, features, selection_check
 from fra_forecast.sources import write_csv, write_json
 from fra_forecast.dataset import LABEL_COLUMNS
 
@@ -17,6 +18,42 @@ except ImportError:
 
 @unittest.skipIf(sklearn is None, "optional ML dependencies")
 class OperationsTests(unittest.TestCase):
+    def test_forecast_context_excludes_later_winds_and_preserves_gaps(self):
+        start = parse_time("2026-05-01T12:00:00Z")
+        weather = [{"valid_time": iso(start+timedelta(hours=h)), "wind_speed_kt": h,
+                    "wind_from_deg_true": 90} for h in range(1, 8)]
+        before = forecast_context(weather, start)
+        weather[-1]["wind_speed_kt"] = 100
+        after = forecast_context(weather, start)
+        self.assertEqual(before[weather[5]["valid_time"]], after[weather[5]["valid_time"]])
+        self.assertAlmostEqual(before[weather[5]["valid_time"]]["forecast_along_3h_kt"], -5*math.sin(math.radians(70)))
+        weather[1]["wind_speed_kt"] = None
+        self.assertIsNone(forecast_context(weather, start)[weather[2]["valid_time"]]["forecast_along_3h_kt"])
+        self.assertEqual(forecast_context(weather, start)[weather[0]["valid_time"]], before[weather[0]["valid_time"]])
+
+    def test_trajectory_features_match_training_and_live_construction(self):
+        import numpy as np
+        start = parse_time("2026-05-01T12:00:00Z")
+        rows = [{"decision_time": iso(start), "valid_time": iso(start+timedelta(hours=h)), "lead_time_hours": h,
+                 "raw_wind_speed_kt": h, "raw_wind_from_deg_true": 90, "raw_gust_kt": 10,
+                 "persistence_observation_time": iso(start-timedelta(hours=1)),
+                 "persistence_u_kt": -8, "persistence_v_kt": 0, "persistence_gust_kt": 12} for h in range(1, 7)]
+        label = {"start": start, "end": start+timedelta(days=1), "available": start+timedelta(days=2),
+                 "operating_direction": "07", "source": "test"}
+        training = labeled_rows(rows, [label])[-1]["x"]
+        weather = [{"valid_time": r["valid_time"], "wind_speed_kt": r["raw_wind_speed_kt"], "wind_from_deg_true": 90, "wind_gust_kt": 10} for r in rows]
+        live = features({**weather[-1], **forecast_context(weather, start)[weather[-1]["valid_time"]]}, None, 6, rows[-1])
+        np.testing.assert_allclose(training, live)
+        missing = predict({"uses_forecast_context": True}, weather[-1], None, 6)
+        self.assertEqual(missing["reason"], "missing_forecast_context")
+
+    def test_selection_does_not_trade_accuracy_for_brier(self):
+        scores = {"horizons": {"all_1_to_48h": {"model": {"accuracy": .79, "balanced_accuracy": .82, "brier_score": .1},
+                   "challenge_rules": {"accuracy": .8, "balanced_accuracy": .8, "brier_score": .2}}}}
+        self.assertFalse(selection_check(scores))
+        scores["horizons"]["all_1_to_48h"]["model"]["accuracy"] = .82
+        self.assertTrue(selection_check(scores))
+
     def test_missing_target_does_not_remove_weather_step_from_baseline(self):
         import numpy as np
         start = parse_time("2026-05-01T00:00:00Z")
@@ -56,7 +93,27 @@ class OperationsTests(unittest.TestCase):
         self.assertIsNone(result["initial_operating_direction"])
         self.assertEqual(result["target_operating_direction"], "07")
         label["operating_direction"] = "25"
-        self.assertEqual(result["x"], labeled_rows([row], [label])[0]["x"])
+        import numpy as np
+        np.testing.assert_allclose(result["x"], labeled_rows([row], [label])[0]["x"], equal_nan=True)
+
+    def test_recent_observations_match_training_and_exclude_future_availability(self):
+        reference = parse_time("2026-05-01T12:00:00Z")
+        rows = [{"valid_time": iso(reference-timedelta(hours=1, minutes=i*10)),
+                 "available_at": iso(reference-timedelta(minutes=i*10)), "wind_quality_code": "3", "gust_quality_code": "3",
+                 "wind_speed_kt": "5", "wind_from_deg_true": "90", "wind_gust_kt": str(8+i), "gust_from_deg_true": "90"} for i in range(6)]
+        recent = recent_observation("unused", reference, rows)
+        self.assertAlmostEqual(recent["persistence_u_kt"], -5)
+        self.assertEqual(recent["persistence_gust_kt"], 13)
+        rows[0]["available_at"] = iso(reference+timedelta(seconds=1))
+        self.assertEqual(recent_observation("unused", reference, rows), {})
+        self.assertEqual(historical_recent({"decision_time": iso(reference), "persistence_observation_time": iso(reference)}), {})
+        unavailable = predict({"uses_recent_observation": True}, {"wind_speed_kt": 5, "wind_from_deg_true": 90}, None, 1)
+        self.assertEqual(unavailable["reason"], "missing_recent_dwd_observation")
+
+    def test_failed_selection_stays_experimental(self):
+        with patch("fra_forecast.operations_ml.class_probabilities", return_value=[0.8]):
+            result = predict({"selection_gate_passed": False, "probability_status": "test"}, {"wind_speed_kt": 5, "wind_from_deg_true": 90}, None, 1)
+        self.assertEqual(result["status"], "experimental")
 
     def test_empty_labels_create_unavailable_report_without_model(self):
         with TemporaryDirectory() as folder:
@@ -68,8 +125,7 @@ class OperationsTests(unittest.TestCase):
 
     def test_real_training_path_with_explicit_synthetic_test_labels(self):
         from fra_forecast.ml_live import load_artifact
-        from fra_forecast.domain import FEATURE_NAMES
-        from fra_forecast.operations_ml import MODEL_VERSION
+        from fra_forecast.operations_ml import FEATURE_NAMES, MODEL_VERSION
         start = parse_time("2026-05-01T00:00:00Z")
         labels, rows = [], []
         for day in range(60):
@@ -96,3 +152,9 @@ class OperationsTests(unittest.TestCase):
             self.assertIn("1", report["test"]["horizons"])
             self.assertIn("6", report["test"]["horizons"])
             self.assertIn("24", report["test"]["horizons"])
+            for day, label in enumerate(labels):
+                label["operating_direction"] = "25" if day < 30 else "07"
+            write_csv(label_path, labels, LABEL_COLUMNS)
+            unavailable = train(folder, label_path, progress=lambda *a, **k: None)
+            self.assertEqual(unavailable["status"], "unavailable")
+            self.assertIn("before inner-validation boundary", unavailable["reason"])

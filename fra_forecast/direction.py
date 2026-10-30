@@ -43,6 +43,7 @@ def prediction(weather, learned=None, basis="challenge_rules_raw_weather", wind_
             "certainty_score": max(values) if valid_model else None,
             "certainty_basis": "model_class_probability" if valid_model else "unavailable_without_validated_od_model",
             "probability_status": learned.get("probability_status") if valid_model else "not_available_for_weather_rule_prediction",
+            "label_quality": learned.get("label_quality") if valid_model else None,
             "learned_model_status": learned.get("status", "unavailable"),
             "learned_model_reason": ("invalid_od_model_probabilities" if learned.get("status") == "available" else learned.get("reason")) if not valid_model else None,
             "runway_plan": plan}

@@ -6,7 +6,7 @@ Forecasting runway operating direction and Runway 18 weather suitability at Fran
 
 FRA Operations Forecast is a research prototype for the **FraAlliance challenge at AI Week Frankfurt 2026**. The project aims to turn weather observations and forecasts into a probabilistic outlook for airport operations over the next 48 hours.
 
-**Status:** Working weather ingestion and 48-hour forecast, validation-selected model comparison, GFS source comparison, discovery reports, optional AI coordinator, replay/export, and local JSON API. The one-page [model card](docs/model-card.md) records measured results and incomplete challenge deliverables. Learned operating direction still needs independent historical labels; the training/inference/evaluation code is implemented and those live probabilities remain `null`. Philipp’s dashboard and map display baseline wind, provisional measurements and real departures.
+**Status:** Working weather ingestion and 48-hour forecast, validation-selected model comparison, GFS source comparison, discovery reports, optional AI coordinator, replay/export, and local JSON API. The one-page [model card](docs/model-card.md) records measured results and incomplete challenge deliverables. A learned 07/25 model now uses recovered DFLD history and recent DWD wind; its scores are provisional on stable display-derived point labels. See [the improvement report](docs/ml-improvement.md) for measured gains, 6/24 h accuracy regressions, and remaining switch-time limits. Philipp’s dashboard and map display baseline wind, provisional measurements and real departures.
 
 ## Run the frontend locally
 

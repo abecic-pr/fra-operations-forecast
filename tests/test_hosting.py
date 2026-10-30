@@ -20,8 +20,15 @@ class HostingTests(unittest.TestCase):
             (source / "forecast.json").write_text(json.dumps({"schema_version": "1.1", "forecast": [{}] * 48}))
             (source / ".env").write_text("SECRET=never-upload")
             (source / "training.csv").write_text("private")
+            operations = source / "models" / "operations-v3"
+            operations.mkdir(parents=True)
+            (operations / "manifest.json").write_text('{}')
+            history = source / "operations"
+            history.mkdir()
+            (history / "labels.csv").write_text("local source history")
             prepare(source, target)
-            self.assertEqual([p.name for p in target.iterdir()], ["forecast.json"])
+            self.assertEqual(sorted(p.relative_to(target).as_posix() for p in target.rglob('*') if p.is_file()),
+                             ["forecast.json", "models/operations-v3/manifest.json"])
             with self.assertRaises(FileExistsError):
                 prepare(source, target)
 

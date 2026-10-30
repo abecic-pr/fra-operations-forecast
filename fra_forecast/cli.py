@@ -27,9 +27,11 @@ def main(argv=None):
     prepare.add_argument("--max-minutes", type=float, default=50)
     train = commands.add_parser("train-ml", help="Train and chronologically evaluate wind corrections")
     train.add_argument("--data-dir", type=Path, default=Path("data"))
-    operations = commands.add_parser("train-operations", help="Train OD only from independently sourced interval labels")
+    operations = commands.add_parser("train-operations", help="Train OD from independently sourced interval or point labels")
     operations.add_argument("--data-dir", type=Path, default=Path("data"))
     operations.add_argument("--labels", type=Path, required=True)
+    history = commands.add_parser("fetch-operations", help="Cache DFLD half-hour history and conservative point-label proxies")
+    history.add_argument("--data-dir", type=Path, default=Path("data"))
     export = commands.add_parser("export-submission", help="Replay explicit jury issue times into CSV and JSON")
     export.add_argument("--data-dir", type=Path, default=Path("data"))
     export.add_argument("--issues", type=Path, required=True)
@@ -50,8 +52,13 @@ def main(argv=None):
     api.add_argument("--data-dir", type=Path, default=Path("data"))
     api.add_argument("--port", type=int, default=8000)
     args = parser.parse_args(argv)
-    if args.command in ("train-operations", "export-submission", "compare-models", "discover-data", "refresh-comparison", "forecast-agent"):
+    if args.command in ("fetch-operations", "train-operations", "export-submission", "compare-models", "discover-data", "refresh-comparison", "forecast-agent"):
         try:
+            if args.command == "fetch-operations":
+                from .operations_history import fetch
+                report = fetch(args.data_dir)
+                print(f"OD history: {report['days']} days, {report['training_points']} provisional point labels")
+                return 0 if report["training_points"] else 1
             if args.command == "train-operations":
                 from .operations_ml import train
                 report = train(args.data_dir, args.labels)

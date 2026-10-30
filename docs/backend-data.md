@@ -225,3 +225,14 @@ and `jury_schema_confirmed: false`; `incomplete` is not submission-ready.
 The dashboard chart/map assistant uses `/api/weather-bot`, `/api/weather-bot/status`,
 and `/api/weather-bot/preview`; see [its contract](ai-weather-bot.md).
 Its response format is separate from the unchanged `/api/chat` flight assistant.
+
+
+### 07/25 history and model update, 30 October 2026
+
+`fetch-operations` saves the source half-hour display history and provisional stable hourly point proxies. The label CSV now optionally supports `label_kind=point` with equal `valid_from` and `valid_to`; these labels match that timestamp only. Existing interval CSVs remain supported. See `docs/operations-label-research.md` before interpreting this data.
+
+`operations_ml` / `direction_forecast` add `label_quality`; learned probability output remains explicitly `uncalibrated_model_probability` or provisional. `operations_ml` also exposes `recent_observation_time`. `operations_model` adds `forecast_hours_available`, `selection_gate_passed`, and recent-observation provenance. The model identity is `operations-v3`. A candidate that fails selection returns `status: experimental` and is not selected by `direction_forecast`. Missing recent DWD input yields `missing_recent_dwd_observation` and the existing weather-rule fallback.
+
+The recent input is DWD station 01420 exactly one hour before the reference, with the same quality filtering and preceding-hour gust definition as training. Its one-hour publication delay is an explicit unverified assumption. Replay uses cached historical observations and the artifact cutoff; it cannot substitute today's observation or backdate newly retrieved OD history. Export adds `od_label_quality` and `od_recent_observation_time`; only available OD probabilities count toward export completion. The model's first eligible hourly reference after this training is 30 October at 14:00 UTC (15:00 Berlin).
+
+`operations-v3` adds `operations_model.uses_forecast_context`. Its second classifier uses UTC hour cycles, fixed six-hour decay of recent wind and wind anomaly, and trailing 3/6-hour averages of runway-aligned **forecast** wind from the same issue. Only hours through the target enter these averages. Training, live inference and replay share `forecast_context()`; missing required forecast steps yield `missing_forecast_context` rather than silently shortening the window. The two logistic probabilities are averaged with fixed 0.5/0.5 weights. The rule thresholds and existing direction/probability JSON fields retain their meaning.

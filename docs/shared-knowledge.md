@@ -1,5 +1,7 @@
 # Integration update — 30 October 2026
 
+ML/history update: recovered 182 days of DFLD 07/25 displays and trained `operations-v3` from 4,259 conservative stable-state point proxies. Recent DWD wind plus forecast-history features improve probability scores at 1/6/24 hours. Direction accuracy wins at 1 hour, ties at 24 hours, and trails the rules by one case at 6 hours; overall accuracy is 77.60% versus 74.72% for rules. These are exploratory results on a previously inspected period; exact switch labels and RWY18 rare-event skill remain unresolved. See [measured results and reproduction](ml-improvement.md). The model's first eligible hourly reference is 14:00 UTC / 15:00 Berlin, after its actual evidence cutoff. Source history is local; redistribution rights are unverified.
+
 The merge with main retains Philipp’s dashboard and verification alongside Antonio’s ML, comparison, flight assistant and submission tools. The wind adapter and forecast archive accept schemas 1.0 and 1.1 while retaining baseline field semantics. The dashboard bot now uses `/api/weather-bot` (plus `/status` and `/preview`); `/api/chat` preserves the existing flight assistant contract. The dated snapshot below predates this integration and is historical, including its pending-merge and endpoint statements. Challenge requirements remain those in `docs/challenge/README.md`, including airport-wide 07/25 forecasts.
 
 # Shared project knowledge snapshot
