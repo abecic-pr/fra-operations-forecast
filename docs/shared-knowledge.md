@@ -1,6 +1,8 @@
 # Shared project knowledge snapshot
 
-Snapshot read 30 October 2026. Source: https://chatgpt.com/space/page_fe8b5e3a0f788191867be7f4e42de933
+Snapshot read 30 October 2026, after implementation commit 2ee9c04 was pushed. Canonical live knowledge base: https://chatgpt.com/space/page_fe8b5e3a0f788191867be7f4e42de933
+
+This is a dated reference snapshot; the app does not fetch the Page live. Read the live Page before major changes.
 
 Team hub for the FraAlliance challenge at AI Week Frankfurt, 30 October 2026. Build a 48-hour outlook for Frankfurt Airport operating direction 07/25 and Runway 18 weather suitability within a six-hour hackathon budget.
 
@@ -8,7 +10,7 @@ Team hub for the FraAlliance challenge at AI Week Frankfurt, 30 October 2026. Bu
 
 # Current priority
 
-Review the compact Runway 18 map with live weather and provisional checked measurements. Preserve Antonio's schema 1.0. Archive issued forecasts and compare them with later measurements before training or claiming accuracy.
+Antonio: connect the OpenAI bot from codex/design when ready, then verify a real tool-backed answer, chart, map and follow-up. Keep OpenAI disconnected until configured. Preserve missing data and the distinction between wind suitability and official status. Reconcile main schema 1.1/ML changes before enabling them in this UI.
 
 # Project links
 
@@ -24,15 +26,15 @@ Review the compact Runway 18 map with live weather and provisional checked measu
 
 # Current status
 
-Antonio's latest main commit a3a3f59 adds a wind ML pipeline and RWY18 departure-weather assessments. The local design branch copied his departure collector, contract and tests unchanged, added its GET route, and collected 102 upcoming services in a three-hour snapshot. The broader ML/schema 1.1 changes have not been merged or enabled in this UI; wind remains on its existing schema 1.0 adapter. The published design branch remains at a453696; subsequent live weather, micro animations and dashboard work remain local and unpushed. Operational training/evaluation still needs independent labels. Status: 30 October 2026.
+Antonio's latest main commit a3a3f59 adds a wind ML pipeline and RWY18 departure-weather assessments. The local design branch copied his departure collector, contract and tests unchanged, added its GET route, and collected 102 upcoming services in a three-hour snapshot. The broader ML/schema 1.1 changes have not been merged or enabled in this UI; wind remains on its existing schema 1.0 adapter. The live weather integration, micro animations, dashboard and disconnected AI Weather Bot are now published on codex/design at 2ee9c04. Operational training/evaluation still needs independent labels. Status: 30 October 2026.
 
 # Design handoff
 
-**Design chat snapshot: 30 October 2026.** Philipp owns design; Antonio gathers data and develops the backend. Runway 18 remains the only runway in scope. The right inspector is narrower, the summary is much smaller, and eyebrow labels are removed. Both panels fit the desktop viewport. Dashboard, map and timeline now share the live provider. Buttons now share soft press feedback, selections slide, switches animate, the layer panel eases open/closed, and chart/playback/refresh controls have subtle transitions. System reduced-motion settings suppress decorative motion. The production build and wind/color-boundary checks passed; browser checks covered layer switches, horizons, keyboard timeline selection and green/unknown states, with no console warnings or errors. Changes remain local and unpushed.
+**Design chat snapshot: 30 October 2026.** Philipp owns design; Antonio gathers data and develops the backend. Runway 18 remains the only runway in scope. The right inspector is narrower, the summary is much smaller, and eyebrow labels are removed. Both panels fit the desktop viewport. Dashboard, map and timeline now share the live provider. Buttons now share soft press feedback, selections slide, switches animate, the layer panel eases open/closed, and chart/playback/refresh controls have subtle transitions. System reduced-motion settings suppress decorative motion. The production build and wind/color-boundary checks passed; browser checks covered layer switches, horizons, keyboard timeline selection and green/unknown states, with no console warnings or errors. This design is published on codex/design at 2ee9c04. The map remains focused on Runway 18; dashboard design preview also illustrates Centre 07C/25C.
 
 ## Repository alignment
 
-The tested UI is pushed to [codex/design](https://github.com/abecic-pr/fra-operations-forecast/tree/codex/design), latest commit [a453696](https://github.com/abecic-pr/fra-operations-forecast/commit/a4536963ea58145ce420ba3c2aacbf5600ffe633). The branch includes Antonio's existing main history; no merge into main has been performed.
+The tested interface and disconnected AI backend are pushed to [codex/design](https://github.com/abecic-pr/fra-operations-forecast/tree/codex/design), implementation commit [2ee9c04](https://github.com/abecic-pr/fra-operations-forecast/commit/2ee9c040ec54a536fd3ab11adc17854c3f55b923). The branch retains Antonio’s original main history through 65a5fe5, plus his departure collector/contract/tests copied unchanged from a3a3f59. The broader main ML/schema 1.1 commit has not been merged; no merge into main has been performed. A documentation-only knowledge snapshot may follow this implementation commit.
 
 GitHub confirmed during push that aiw26 was renamed to fra-operations-forecast. The old URL redirects to the same repository. The local remote and README now use the confirmed name; there is no separate-repository mismatch.
 
@@ -62,7 +64,7 @@ npm run dev
 
 Open http://127.0.0.1:5173/ for the dashboard or http://127.0.0.1:5173/#map for the map. These addresses refer to the viewer's own computer; they are not shared hosted links.
 
-The previously published demo passed wind checks, the production build and 15 backend tests. The current local live-data iteration passes wind/comparison checks and all 19 backend tests, including source/time/quality screening, immutable forecast issues and exclusion of future observations. Browser review confirmed the compact panels, real clock and green measured series. The final production build also passed. Browser console checks reported no warnings or errors. The local changes remain uncommitted and have not been pushed.
+The published implementation passes the production build, wind/comparison/color/departure checks and all 36 backend tests. Browser checks cover compact map panels, real clock, provisional measured wind, interaction states, dashboard flight details and the chatbot’s real-data preview. Local chat endpoints return an explicit missing-key response and reject cross-origin requests. No console warnings or errors were reported. OpenAI provider calls are mocked in tests; a real completion remains unverified by explicit user choice.
 
 ## Backend data handoff
 
@@ -88,7 +90,23 @@ Landing tailwind ≥10 kt forces an OD change. Smaller positive tailwind is tole
 
 - [ ] Antonio: find a source with actual runway assignments and takeoff times if available; preserve the distinction from published gate/departure-board times. Until then, real flights remain Unassigned in the dashboard.
 
-Dashboard validation: production build, wind/color/departure adapter checks and all 30 backend tests passed. Browser checks verified real flights, flight details, demo switching and the hero/queue layout; no console warnings or errors were reported. Changes remain local.
+Dashboard validation: production build, wind/color/departure adapter checks and all 36 backend tests passed. Browser checks verified real flights, flight details, demo switching and the hero/queue layout; no console warnings or errors were reported. Published with the AI-bot handoff on codex/design.
+
+## AI Weather Bot handoff
+
+Philipp requested a chatbot with project data access, graphics and maps. The dashboard panel and Python backend are implemented and published on codex/design at 2ee9c04. At Philipp's explicit request, leave OpenAI disconnected; Antonio will connect it from the repository. No API key is committed and no real OpenAI completion has been tested.
+
+The bot uses OpenAI Responses with server-side credentials, medium internal reasoning, read-only data retrieval and strict structured replies. It returns a concise explanation and source IDs, not hidden chain-of-thought. Charts use actual saved baseline values and preserve missing-data gaps; interactive OpenStreetMap responses show real Runway 18 geometry. A clearly labeled non-AI data preview works without a key.
+
+Data access covers normalized project JSON/CSV/JSONL, checked measurements, past issued forecasts, operations snapshots, departures, available local metrics, source records, documentation and a dated shared-knowledge snapshot. It excludes secrets, arbitrary files, raw ZIP/binary caches and model weights. The app does not fetch this Page live; docs/shared-knowledge.md is its dated reference copy. Missing ML artifacts remain unavailable. Data is read-only; the bot cannot close runways or assign flights.
+
+Setup and contract: docs/ai-weather-bot.md and .env.example. API routes are GET /api/chat/status, GET /api/chat/preview and POST /api/chat. Same-origin requests, bounded inputs/tool rounds and one active answer limit local use. OpenAI model defaults to gpt-5-mini, configurable on the backend. Conversation state stays in browser memory and requests use store:false.
+
+- [ ] Antonio: add a server-only OPENAI_API_KEY, verify model access and test a real tool-backed answer, follow-up question, chart, map and missing-data case. The UI checks configuration automatically; key presence is not provider authentication. Keep the key out of VITE_ variables, commits and browser storage.
+
+- [ ] Antonio: reconcile the broader main ML/schema 1.1 integration with this schema 1.0 design branch before enabling corrected weather/probabilities.
+
+Validation: production build, wind/departure/color checks and all 36 backend tests pass. Mocked API tests cover tool calls and output validation; local endpoint tests confirm preview, missing-key 503 and cross-origin 403. Browser review confirmed the preview chart, interactive map, evidence section and disconnected question handling with no console warnings or errors.
 
 ## Next steps together
 
