@@ -174,3 +174,21 @@ const directionConflict={...scenario.dataset,frames:scenario.dataset.frames.map(
 assert.equal(w.airportDirection(directionConflict,2).direction,'25','Fine raw weather must not replace the learned airport direction');
 assert.equal(p.centreCandidate(directionConflict,trafficNow+130*60000),null,'Do not propose conflicting forecast runway directions');
 assert.equal(w.adaptBackendSnapshot(payload).frames[0].resolutionMinutes,60,'Hourly published cadence remains hourly');
+
+const screenedComplete={...measuredInput,valid_time:'2026-10-30T12:00:00Z',received_at:'2026-10-30T12:20:00Z',wind_speed_kt:7,wind_from_deg_true:0,wind_gust_kt:10,gust_from_deg_true:90,gust_quality_code:'2',gust_received_at:'2026-10-30T12:25:00Z',source_sha256:'a'.repeat(64),gust_source_sha256:'b'.repeat(64),gust_source_url:'https://opendata.dwd.de/climate_environment/CDC/observations_germany/climate/10_minutes/extreme_wind/now/10minutenwerte_extrema_wind_01420_now.zip'};
+const incompleteCurrent={...demo,currentObservation:{...statusFrame,gustKt:null,gustCrosswindKt:null,weatherState:'unknown'}};
+w.applyVerifiedCurrent(incompleteCurrent,screenedComplete,trafficNow+30*60000);
+assert.equal(incompleteCurrent.currentObservation.weatherState,'usable');
+assert.equal(incompleteCurrent.currentObservation.gustCrosswindKt,10);
+close(w.runwayComponents(incompleteCurrent.currentObservation,180).gustCrosswind,10);
+assert.equal(incompleteCurrent.currentObservationSource,'DWD 01420 · checked provisional');
+for(const patch of [{gust_quality_code:'1'},{gust_source_sha256:'bad'},{gust_received_at:'2026-10-30T13:00:00Z'},{valid_time:'2026-10-30T10:00:00Z'}]){
+ const d={...demo,currentObservation:{...statusFrame,gustKt:null,gustCrosswindKt:null,weatherState:'unknown'}};
+ w.applyVerifiedCurrent(d,{...screenedComplete,...patch},trafficNow+30*60000);
+ assert.equal(d.currentObservation.weatherState,'unknown');
+}
+const newerRed={...demo,currentObservation:{...statusFrame,tailwindKt:16,weatherState:'not_usable'}};
+w.applyVerifiedCurrent(newerRed,screenedComplete,trafficNow+30*60000);
+assert.equal(newerRed.currentObservation.tailwindKt,16,'Older complete wind must not hide a newer known exceedance');
+assert.equal(w.runwayPresentation({...statusFrame,gustKt:null,gustCrosswindKt:null,weatherState:'unknown'}).label,'Gusts not reported');
+console.log('Complete observation checks passed: separate source/quality screening, same interval, freshness, actual gust direction and newer hazard precedence.');

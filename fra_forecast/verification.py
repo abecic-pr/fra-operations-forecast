@@ -59,6 +59,35 @@ def comparison_payload(root, now=None):
     root = Path(root)
     now = now or datetime.now(UTC)
     start = now - timedelta(hours=6)
+    # Pair complete wind/gust observations only at the same station and interval.
+    # Read and hash-screen each original source independently; do not trust merged QN.
+    gusts = {}
+    gust_root = DWD_WIND_ROOT.replace("/wind/", "/extreme_wind/")
+    for folder in ("dwd_extreme_wind_recent", "dwd_extreme_wind_now"):
+        for meta_path in sorted((root / "raw" / folder).glob("*.json")):
+            try:
+                meta = json.loads(meta_path.read_text())
+                received = parse_time(meta["fetched_at"])
+                url = meta.get("url", "")
+                if meta.get("status") != "ok" or meta.get("http_status") != 200 or received > now or not url.startswith(gust_root) or "_01420_" not in url:
+                    continue
+                body = meta_path.with_suffix(".bin").read_bytes()
+                if hashlib.sha256(body).hexdigest() != meta.get("sha256"):
+                    continue
+                for row in _parsed_wind(body, now.date().isoformat()):
+                    at = parse_time(row["valid_time"])
+                    speed, direction = number(row.get("wind_gust_kt")), number(row.get("gust_from_deg_true"))
+                    quality = str(row.get("gust_quality_code", ""))
+                    if not start <= at <= min(now, received) or quality not in {"2", "3"} or speed is None or not 0 <= speed <= 200 or direction is None or not 0 <= direction <= 360:
+                        continue
+                    value = {"wind_gust_kt": speed, "gust_from_deg_true": direction,
+                             "gust_quality_code": quality, "gust_source_url": url,
+                             "gust_received_at": meta["fetched_at"], "gust_source_sha256": meta["sha256"]}
+                    previous = gusts.get(row["valid_time"])
+                    if previous is None or (quality, value["gust_received_at"]) > (previous["gust_quality_code"], previous["gust_received_at"]):
+                        gusts[row["valid_time"]] = value
+            except (OSError, ValueError, KeyError, zipfile.BadZipFile):
+                continue
     observations = {}
     excluded = 0
     # Read mean-wind source files directly: merged CSV QN can refer to the gust
@@ -91,7 +120,8 @@ def comparison_payload(root, now=None):
                               "station_id": "01420", "source": "DWD CDC", "source_url": url,
                               "received_at": meta["fetched_at"], "quality_code": quality,
                               "eligible": True, "provisional": True,
-                              "verification": "source_hash_station_time_and_QN_screened"}
+                              "verification": "source_hash_station_time_and_QN_screened",
+                              "source_sha256": meta["sha256"], **gusts.get(row["valid_time"], {})}
                     previous = observations.get(row["valid_time"])
                     if previous is None or (quality, result["received_at"]) > (previous["quality_code"], previous["received_at"]):
                         observations[row["valid_time"]] = result
@@ -113,7 +143,9 @@ def comparison_payload(root, now=None):
                         forecasts.append({**point, "issued_at": run["issued_at"], "generated_at": run["generated_at"]})
             except (ValueError, KeyError):
                 continue
+    complete = [r for r in observations.values() if r.get("wind_gust_kt") is not None and now-parse_time(r["valid_time"]) <= timedelta(minutes=90)]
     return {"schema_version": "1.0", "checked_at": iso(now),
+            "latest_complete_observation": max(complete, key=lambda r: r["valid_time"]) if complete else None,
             "observations": sorted(observations.values(), key=lambda row: row["valid_time"]),
             "issued_forecasts": forecasts, "excluded_measurements": excluded,
             "policy": "Official DWD mean wind, source hash and time checked, QN 2 or 3; provisional, not final QC.",

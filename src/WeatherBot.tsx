@@ -36,7 +36,7 @@ function ForecastGraphic({visual}:{visual:Visual}) {
     {segments.map((segment,i)=><polyline key={i} points={segment.map(p=>`${x(p.time)},${y(p.value)}`).join(' ')} className="bot-wind-line"/>)}
     {values.map(p=><circle key={p.time} cx={x(p.time)} cy={y(p.value!)} r="2" fill="#2588dd"><title>{formatUtc(p.time)} UTC · {p.value!.toFixed(1)} kt</title></circle>)}
     {[points[0],points[Math.floor((points.length-1)/2)],points.at(-1)!].filter((p,i,a)=>a.findIndex(v=>v.time===p.time)===i).map(p=><text key={p.time} x={x(p.time)} y={height-8} textAnchor={p===points[0]?'start':p===points.at(-1)?'end':'middle'}>{formatUtc(p.time)}</text>)}
-  </svg><p>Forecast issued {visual.generated_at?new Date(visual.generated_at).toLocaleString('en-GB',{timeZone:'UTC',day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):'unknown'} UTC · raw weather baseline</p></figure>;
+  </svg><p>Forecast issued {visual.generated_at?new Date(visual.generated_at).toLocaleString('en-GB',{timeZone:'UTC',day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):'not supplied'} UTC · raw weather baseline</p></figure>;
 }
 export default function WeatherBot({selectedTime,onOpenMap}:{selectedTime:string;onOpenMap:()=>void}) {
   const [configured,setConfigured]=useState<boolean|null>(null),[messages,setMessages]=useState<Message[]>([]),[question,setQuestion]=useState('');

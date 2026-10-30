@@ -28,6 +28,20 @@ def write_source(root, rows, valid_hash=True):
     }))
 
 
+def write_gust_source(root, rows, valid_hash=True):
+    folder = Path(root) / 'raw/dwd_extreme_wind_now'
+    folder.mkdir(parents=True, exist_ok=True)
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, 'w') as archive:
+        archive.writestr('produkt_gust.txt', 'STATIONS_ID;MESS_DATUM;QN;FX_10;DX_10\n' + '\n'.join(rows))
+    body = buffer.getvalue()
+    (folder / 'sample.bin').write_bytes(body)
+    (folder / 'sample.json').write_text(json.dumps({
+        'status': 'ok', 'http_status': 200, 'fetched_at': '2026-10-30T12:25:00Z',
+        'url': 'https://opendata.dwd.de/climate_environment/CDC/observations_germany/climate/10_minutes/extreme_wind/now/10minutenwerte_extrema_wind_01420_now.zip',
+        'sha256': hashlib.sha256(body).hexdigest() if valid_hash else 'incorrect'}))
+
+
 class VerificationTests(unittest.TestCase):
     def test_quality_time_and_source_checks(self):
         with tempfile.TemporaryDirectory() as root:
@@ -43,6 +57,23 @@ class VerificationTests(unittest.TestCase):
             self.assertTrue(point['eligible'])
             self.assertTrue(point['provisional'])
             self.assertEqual(point['quality_code'], '2')
+
+    def test_complete_observation_requires_separate_gust_source_checks(self):
+        with tempfile.TemporaryDirectory() as root:
+            write_source(root, ['01420;202610301200;2;3.6;0'])
+            self.assertIsNone(comparison_payload(root, NOW)['latest_complete_observation'])
+            write_gust_source(root, ['01420;202610301200;2;6;90'], valid_hash=False)
+            self.assertIsNone(comparison_payload(root, NOW)['latest_complete_observation'])
+            write_gust_source(root, ['01420;202610301210;2;6;90'])
+            self.assertIsNone(comparison_payload(root, NOW)['latest_complete_observation'])
+            write_gust_source(root, ['01420;202610301200;1;6;90'])
+            self.assertIsNone(comparison_payload(root, NOW)['latest_complete_observation'])
+            write_gust_source(root, ['01420;202610301200;2;6;90'])
+            result = comparison_payload(root, NOW)['latest_complete_observation']
+            self.assertAlmostEqual(result['wind_gust_kt'], 6*1.943844)
+            self.assertEqual(result['gust_from_deg_true'], 90)
+            self.assertEqual(len(result['gust_source_sha256']), 64)
+            self.assertIsNone(comparison_payload(root, parse_time('2026-10-30T14:00:00Z'))['latest_complete_observation'])
 
     def test_hash_mismatch_excludes_measurements(self):
         with tempfile.TemporaryDirectory() as root:
