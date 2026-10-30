@@ -2,10 +2,10 @@ import { useEffect, useRef, useState } from 'react';
 import Icon from './Icon';
 import { DEPARTURE_LIMIT_KT, comparisonPairs, formatUtc, frameAt, type WindView } from './data/wind';
 
-type PlotPoint = { time: number; value: number };
+type PlotPoint = { time: number; value: number; resolution?:number };
 function segments(points: PlotPoint[], maxGap: number) {
   const result: PlotPoint[][]=[];
-  points.forEach(point=>{const last=result.at(-1);if(!last||point.time-last.at(-1)!.time>maxGap)result.push([point]);else last.push(point);});
+  points.forEach(point=>{const last=result.at(-1);if(!last||point.time-last.at(-1)!.time>Math.min(maxGap,Math.min(point.resolution??60,last.at(-1)!.resolution??60)*60000*1.1))result.push([point]);else last.push(point);});
   return result;
 }
 export default function WindForecast({dataset,hour,horizon,playing,onHour,onHorizon,onPlaying,now=Date.now(),connectionError,hideHorizon=false}:WindView&{hideHorizon?:boolean}) {
@@ -16,7 +16,7 @@ export default function WindForecast({dataset,hour,horizon,playing,onHour,onHori
   const observations=(dataset.observations??[]).filter(p=>Date.parse(p.validTime)>=start&&Date.parse(p.validTime)<=Math.min(now,end));
   const historical=new Map<number, {time:number;value:number;issued:number}>();
   for(const point of dataset.issuedForecasts??[]){const time=Date.parse(point.validTime),issued=Date.parse(point.issuedAt);if(time>=start&&time<=now&&issued<time&&(!historical.has(time)||historical.get(time)!.issued<issued))historical.set(time,{time,value:point.tailwindKt,issued});}
-  const forecastPoints:PlotPoint[]=[...historical.values(),...dataset.frames.filter(p=>p.tailwindKt!==null&&Date.parse(p.validTime)>now&&Date.parse(p.validTime)<=end).map(p=>({time:Date.parse(p.validTime),value:p.tailwindKt!}))].sort((a,b)=>a.time-b.time);
+  const forecastPoints:PlotPoint[]=[...historical.values(),...(dataset.planningFrames??dataset.frames).filter(p=>p.tailwindKt!==null&&Date.parse(p.validTime)>now&&Date.parse(p.validTime)<=end).map(p=>({time:Date.parse(p.validTime),value:p.tailwindKt!,resolution:p.resolutionMinutes}))].sort((a,b)=>a.time-b.time);
   const measuredPoints=observations.map(p=>({time:Date.parse(p.validTime),value:p.tailwindKt}));
   const pairs=comparisonPairs(observations,dataset.issuedForecasts??[],now),mae=pairs.length?pairs.reduce((sum,p)=>sum+Math.abs(p.error),0)/pairs.length:null;
   const max=Math.max(25,Math.ceil(Math.max(...forecastPoints.map(p=>p.value),...measuredPoints.map(p=>p.value),0)/5)*5);
@@ -31,6 +31,7 @@ export default function WindForecast({dataset,hour,horizon,playing,onHour,onHori
     <div className="chart-container" ref={chartContainer}>
       <svg key={horizon} className="wind-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`Runway 18 tailwind forecast in blue and ${observations.length} checked provisional measured values in green; current time ${formatUtc(new Date(now).toISOString())} UTC`}>
         <defs><linearGradient id="wind-fill" x1="0" y1="0" x2="0" y2="1"><stop stopColor="#55a7ff" stopOpacity=".2"/><stop offset="1" stopColor="#55a7ff" stopOpacity="0"/></linearGradient><clipPath id="above-limit"><rect x={left} y={top} width={width-left-right} height={Math.max(0,y(DEPARTURE_LIMIT_KT)-top)}/></clipPath></defs>
+        <rect x={left} y={y(DEPARTURE_LIMIT_KT)} width={width-left-right} height={y(DEPARTURE_LIMIT_KT-4)-y(DEPARTURE_LIMIT_KT)} fill="#e4bd58" fillOpacity=".1"/>
         {[0,5,10,15,20,25].filter(v=>v<=max).map(value=><g key={value}><line x1={left} x2={width-right} y1={y(value)} y2={y(value)} className="chart-grid"/><text x={left-7} y={y(value)+3} textAnchor="end">{value}</text></g>)}
         {[0,.25,.5,.75,1].map(ratio=>{const time=start+ratio*(end-start);return <text key={ratio} x={x(time)} y={height-7} textAnchor={ratio===0?'start':ratio===1?'end':'middle'}>{formatUtc(new Date(time).toISOString())}</text>;})}
         <line x1={left} x2={width-right} y1={y(DEPARTURE_LIMIT_KT)} y2={y(DEPARTURE_LIMIT_KT)} className="limit-line"/><text x={width-right} y={y(DEPARTURE_LIMIT_KT)-7} textAnchor="end" className="limit-label">Departure limit · 15 kt</text>

@@ -1,3 +1,5 @@
+import {forecastWindows,flightReviews} from './data/planning';
+import RunwayPlan,{type PlanningControl} from './RunwayPlan';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import L from 'leaflet';
 import type { FeatureCollection, Geometry } from 'geojson';
@@ -15,7 +17,7 @@ function fitRunway(map: L.Map, bounds: L.LatLngBoundsExpression = airportBounds)
   const size=map.getSize(), compact=size.x<=900;
   map.fitBounds(bounds,{paddingTopLeft:[compact?70:100,90],paddingBottomRight:[compact?40:Math.min(540,size.x*.4),compact?size.y*.56:100],maxZoom:15,animate:!window.matchMedia('(prefers-reduced-motion: reduce)').matches,duration:.45});
 }
-export default function AirportMap({onBack,traffic,focus,onFocus,...view}:WindView&{onBack:()=>void;traffic:TrafficControl;focus:'runway18'|'airport';onFocus:(value:'runway18'|'airport')=>void}) {
+export default function AirportMap({onBack,traffic,focus,onFocus,planning,...view}:WindView&{planning:PlanningControl;onBack:()=>void;traffic:TrafficControl;focus:'runway18'|'airport';onFocus:(value:'runway18'|'airport')=>void}) {
   const {dataset,hour}=view;
   const frame=useMemo(()=>frameAt(dataset,hour),[dataset,hour]);
   const presentation=runwayPresentation(frame,view.connectionError);
@@ -50,9 +52,18 @@ export default function AirportMap({onBack,traffic,focus,onFocus,...view}:WindVi
     return()=>{tile.remove();tile.off();};
   },[mapInstance,basemap]);
   useEffect(()=>{if(!map.current||status!=='ready')return;for(const [layer,enabled]of [[runway.current,showRunway],[parallel.current,showRunway&&focus==='airport'],[boundary.current,showBoundary]] as const){if(layer){if(enabled)layer.addTo(map.current);else layer.remove();}}},[showRunway,showBoundary,status,focus]);
+  const windows=forecastWindows(dataset,view.now??Date.now()).windows;
+  const selectedRisk=windows.find(w=>w.id===planning.selected)??windows.find(w=>w.kind==='restricted')??windows[0]??null;
+  const proposedEnds=flightReviews(dataset,planning.board,selectedRisk,view.now??Date.now()).filter(r=>planning.proposals.includes(r.flight.id)&&r.candidate).map(r=>r.candidate).join(',');
+  useEffect(()=>{
+    if(!mapInstance||!proposedEnds)return;
+    const controller=new AbortController();let layer:L.GeoJSON|undefined;
+    fetch('/data/frankfurt-airport.geojson',{signal:controller.signal}).then(r=>r.json()).then((data:FeatureCollection<Geometry,AirportProperties>)=>{if(controller.signal.aborted)return;layer=L.geoJSON(data,{filter:f=>f.properties.aeroway==='runway'&&Boolean(f.properties.ref?.includes('C')),style:{color:'#7bb8ff',weight:10,opacity:.9,dashArray:'8 8'}}).bindTooltip(`Draft: ${proposedEnds} · wind suitable · availability unverified`,{permanent:true,direction:'center',className:'runway-label'}).addTo(mapInstance);}).catch(()=>{});
+    return()=>{controller.abort();layer?.remove();};
+  },[mapInstance,proposedEnds]);
   const speed=frame.eastKt===null||frame.northKt===null?null:Math.hypot(frame.eastKt,frame.northKt);
   const from=speed===null?null:windFromVector(frame.eastKt!,frame.northKt!);
-  const next=frame.weatherState==='unknown'?undefined:dataset.frames.find(point=>Date.parse(point.validTime)>Date.parse(frame.validTime)&&point.weatherState!==frame.weatherState&&point.weatherState!=='unknown');
+  const next=frame.weatherState==='unknown'?undefined:(dataset.planningFrames??dataset.frames).find(point=>Date.parse(point.validTime)>Date.parse(frame.validTime)&&point.weatherState!==frame.weatherState&&point.weatherState!=='unknown');
   useEffect(()=>{
     if(status!=='ready'||!runway.current)return;
     runway.current.setStyle({color:presentation.color,weight:focus==='runway18'?12:6,opacity:focus==='runway18'?.9:.55});
@@ -77,7 +88,7 @@ export default function AirportMap({onBack,traffic,focus,onFocus,...view}:WindVi
       <div className="runway-summary-heading"><h1>Runway 18</h1><div className="source-actions"><span className="demo-badge">{view.connectionError?'Connection lost':dataset.mode==='demo'?'Demo':'Live'}</span>{view.onRefresh&&<button className="refresh-data" aria-label="Refresh weather" disabled={view.refreshing} onClick={view.onRefresh}><Icon name="refresh" size={16}/></button>}</div></div>
       <div className={`runway-status tone-${presentation.tone}`} title={presentation.detail}><span className="status-dot"/><span key={presentation.label} className="status-copy">{presentation.label}</span><span className="status-detail">{dataset.mode==='demo'?'Simulated':'Weather only'}</span></div>
       <dl className="compact-metrics"><div><dt>Tailwind</dt><dd>{frame.tailwindKt===null?'—':frame.tailwindKt.toFixed(1)}<small> kt</small></dd></div><div><dt>Gust crosswind</dt><dd>{frame.gustCrosswindKt===null?'—':frame.gustCrosswindKt.toFixed(1)}<small> kt</small></dd></div><div><dt>Next change</dt><dd>{next?formatUtc(next.validTime):'—'}<small> UTC</small></dd></div></dl>
-    </section><WindForecast {...view}/></>:<><RunwayTrafficSummary view={view} traffic={traffic} compact/><ParallelForecast view={view} traffic={traffic}/></>}
+    </section><details className="glass map-planning"><summary>Restriction windows & flights{planning.proposals.length?` · ${planning.proposals.length} drafts`:""}</summary><RunwayPlan view={view} planning={planning} compact/></details><WindForecast {...view}/></>:<><RunwayTrafficSummary view={view} traffic={traffic} compact/><ParallelForecast view={view} traffic={traffic}/></>}
     </div>
     {status==='loading'&&<div className="map-notice glass" role="status">Loading airport runways…</div>}{status==='error'&&<div className="map-notice glass" role="alert">Runway overlay unavailable. Reload to try again.</div>}{tileError&&<div className="map-notice glass" role="status">Some map tiles did not load. <button onClick={()=>setBasemap(basemap==='satellite'?'street':'satellite')}>Try another map</button></div>}
   </main>;

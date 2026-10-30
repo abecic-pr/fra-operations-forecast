@@ -85,6 +85,8 @@ def live_snapshot(now, models, metar, dwd, operations, checks):
                          "initial_direction_source": "observed_operations" if initial_direction else "wind_inference",
                          "source_errors": [r for r in checks if r.get("status") == "error"]},
         "forecast": output,
+        "rwy18_weather_timeline": timeline,
+        "rwy18_timeline_basis": "challenge_rules_raw_weather_samples_not_official_closures",
         "next_operating_direction_change": next_change(future_timeline, "operating_direction", initial_direction),
         "next_rwy18_weather_change": next_change(future_timeline, "rwy18_weather_state", current18),
         "limitations": ["Deterministic baseline; probabilities are intentionally null.",

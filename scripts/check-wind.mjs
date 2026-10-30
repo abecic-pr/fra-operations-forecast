@@ -61,8 +61,8 @@ console.log('Measured comparison checks passed: 9 kt forecast versus 7 kt measur
 // Display caution must not alter backend rules or turn unknown data green.
 const statusFrame = { ...demo.frames[0], weatherState:'usable', tailwindKt:5, crosswindKt:5, gustCrosswindKt:8 };
 assert.equal(w.runwayPresentation(statusFrame).tone,'green');
-assert.equal(w.runwayPresentation({...statusFrame,tailwindKt:12}).tone,'yellow');
-assert.equal(w.runwayPresentation({...statusFrame,gustCrosswindKt:32}).tone,'yellow');
+assert.equal(w.runwayPresentation({...statusFrame,tailwindKt:11}).tone,'yellow');
+assert.equal(w.runwayPresentation({...statusFrame,gustCrosswindKt:36}).tone,'yellow');
 assert.equal(w.runwayPresentation({...statusFrame,tailwindKt:15}).tone,'red');
 assert.equal(w.runwayPresentation({...statusFrame,gustCrosswindKt:40}).tone,'yellow');
 assert.equal(w.runwayPresentation({...statusFrame,gustCrosswindKt:40.01}).tone,'red');
@@ -143,7 +143,37 @@ assert.equal(w.runwayComponents(demo.frames[0],null).tailwind,null);
 assert.equal(traffic.demoTraffic(trafficNow,'25').flights.every(f=>f.position===null||f.position.heading===250),true);
 console.log('Traffic checks passed: confirmed-only next flight, stale data, runway 18 exclusion, missing direction, and preview movement.');
 
-assert.equal(traffic.adaptTraffic({...trafficSnapshot,flights:[{...flight,assigned_runway:'18',assignment_status:'confirmed'}]}).flights.length,0);
+assert.equal(traffic.adaptTraffic({...trafficSnapshot,flights:[{...flight,assigned_runway:'18',assignment_status:'confirmed'}]}).flights.length,1);
+
+const windUrl='data:text/javascript;base64,'+Buffer.from(code).toString('base64');
+const planningCode=(await transformWithOxc(await readFile(new URL('../src/data/planning.ts',import.meta.url),'utf8'),'planning.ts')).code.replace(/from ["']\.\/wind["']/g,'from '+JSON.stringify(windUrl));
+const p=await import('data:text/javascript;base64,'+Buffer.from(planningCode).toString('base64'));
+assert.equal(w.runwayPresentation({...statusFrame,tailwindKt:10.99}).tone,'green');
+assert.equal(w.runwayPresentation({...statusFrame,gustCrosswindKt:35.99}).tone,'green');
+const scenario=p.examplePlan(trafficNow), report=p.forecastWindows(scenario.dataset,trafficNow);
+const restriction=report.windows.find(x=>x.kind==='restricted');
+assert.equal(restriction.start,trafficNow+120*60000);
+assert.equal(restriction.end,trafficNow+150*60000);
+assert.equal(restriction.resolution,15);
+const reviews=p.flightReviews(scenario.dataset,scenario.board,restriction,trafficNow);
+assert.equal(reviews.filter(x=>x.assigned18).length,1);
+assert.equal(reviews.filter(x=>!x.assigned18).length,1);
+assert.equal(reviews.find(x=>x.assigned18).candidate,'07C');
+assert.equal(p.flightReviews(scenario.dataset,{...scenario.board,generatedAt:new Date(trafficNow-16*60000).toISOString()},restriction,trafficNow).length,0);
+assert.equal(p.flightReviews(scenario.dataset,{...scenario.board,flights:scenario.board.flights.map(f=>({...f,operation:'landing'}))},restriction,trafficNow).length,0);
+const gapDataset={...scenario.dataset,planningFrames:scenario.dataset.planningFrames.filter(f=>Date.parse(f.validTime)!==trafficNow+150*60000)};
+assert.equal(p.forecastWindows(gapDataset,trafficNow).windows.find(x=>x.kind==='restricted').end,null);
+assert.equal(w.frameAt(gapDataset,2.5).weatherState,'unknown');
+assert.equal(p.planningState({...statusFrame,weatherState:'unknown'}),'unknown');
+assert.equal(p.centreCandidate({...scenario.dataset,planningFrames:scenario.dataset.planningFrames.map(f=>({...f,gustKt:null}))},trafficNow+130*60000),null);
+const hourly={...scenario.dataset,planningFrames:undefined,frames:scenario.dataset.frames.map(f=>({...f,resolutionMinutes:60}))};
+assert.equal(p.forecastWindows(hourly,trafficNow).windows.find(x=>x.kind==='restricted').end,trafficNow+180*60000);
+console.log('Restriction planning checks passed: 4 kt caution, 30-minute sampled window, assignment screening, stale boards, gaps and hourly precision.');
+
+const directionConflict={...scenario.dataset,frames:scenario.dataset.frames.map(f=>({...f,operatingDirection:'25',directionBasis:'independently_trained_od_model'}))};
+assert.equal(w.airportDirection(directionConflict,2).direction,'25','Fine raw weather must not replace the learned airport direction');
+assert.equal(p.centreCandidate(directionConflict,trafficNow+130*60000),null,'Do not propose conflicting forecast runway directions');
+assert.equal(w.adaptBackendSnapshot(payload).frames[0].resolutionMinutes,60,'Hourly published cadence remains hourly');
 
 // A complete zero forecast must stay distinct from partial or absent weather/direction.
 const headwindForecast={...demo,frames:demo.frames.map(f=>({...f,...w.vectorFromWind(8,70),operatingDirection:'07'}))};
