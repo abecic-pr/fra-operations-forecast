@@ -1,0 +1,2 @@
+# Match the version recorded in the deployed wind-model manifests.
+scikit-learn==1.9.1

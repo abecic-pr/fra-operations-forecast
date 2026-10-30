@@ -1,0 +1,15 @@
+.git
+.env
+.env.*
+.venv
+.impeccable
+node_modules
+dist
+/data/
+branding
+output
+tests
+**/__pycache__
+*.egg-info
+*.log
+pyproject.toml

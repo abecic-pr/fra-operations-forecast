@@ -1,0 +1,30 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "vite",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "regions": [
+    "fra1"
+  ],
+  "functions": {
+    "api/index.py": {
+      "maxDuration": 300,
+      "includeFiles": "deployment-data/**",
+      "excludeFiles": "{node_modules/**,src/**,public/**,branding/**,output/**,tests/**,.venv/**,data/**,**/tests/**,**/__pycache__/**}"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "/api/index?_route=/api/:path*"
+    },
+    {
+      "source": "/how-it-works",
+      "destination": "/api/index?_route=/how-it-works"
+    },
+    {
+      "source": "/how-it-works/:path*",
+      "destination": "/api/index?_route=/how-it-works/:path*"
+    }
+  ]
+}
