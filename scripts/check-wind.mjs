@@ -112,3 +112,18 @@ const operationalAdapter=w.adaptBackendSnapshot(operationalPayload);
 assert.equal(operationalAdapter.operations.direction,'25');
 assert.equal(operationalAdapter.frames[0].operatingDirection,'07');
 assert.equal(operationalAdapter.nextDirectionChange.latest,'2026-10-30T11:00:00Z');
+// East/west arrows follow authoritative OD, never wind-from; 18 remains south.
+const airportData={...demo,operations:{direction:'25',observedAt:demo.generatedAt,since:null,source:'Official report'},frames:demo.frames.map(f=>({...f,operatingDirection:'07',directionBasis:'challenge_rules_raw_weather'}))};
+assert.equal(w.airportDirection(airportData,0).heading,250);
+assert.equal(w.airportDirection(airportData,1).heading,70);
+assert.equal(w.airportDirection(airportData,1).basis,'Weather-rule direction forecast');
+assert.equal(w.airportDirection(airportData,0,true).direction,null);
+assert.equal(w.airportDirection({...airportData,operations:undefined},0).direction,null);
+const ne=[[8.6,50.05],[8.5,50.02]],south=[[8.526,49.99],[8.526,50.04]];
+assert.deepEqual(w.movementEndpoints(ne,70),[ne[1],ne[0]]);
+assert.deepEqual(w.movementEndpoints(ne,250),ne);
+assert.deepEqual(w.movementEndpoints(south,180),[south[1],south[0]]);
+const enriched={schema_version:'1.1',generated_at:demo.generatedAt,forecast:[{valid_time:demo.frames[1].validTime,operating_direction:'25',direction_forecast:{operating_direction:'07',basis:'challenge_rules_raw_weather',certainty_score:null}}]};
+assert.equal(w.adaptBackendSnapshot(enriched).frames[0].operatingDirection,'07');
+assert.equal(w.adaptBackendSnapshot(enriched).frames[0].directionCertainty,null);
+console.log('Airport movement direction and 1.1 adapter checks passed.');

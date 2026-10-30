@@ -11,6 +11,8 @@ export type WindFrame = {
   weatherState: WeatherState;
   probability: number | null;
   operatingDirection?: '07' | '25' | null;
+  directionBasis?: string;
+  directionCertainty?: number | null;
 };
 export type WindDataset = {
   mode: 'demo' | 'live';
@@ -85,7 +87,7 @@ export function frameAt(dataset: WindDataset, hour: number): WindFrame {
   const eastKt = mix(a.eastKt, b.eastKt), northKt = mix(a.northKt, b.northKt), gustKt = mix(a.gustKt, b.gustKt);
   // Preserve backend rule states at hourly points; only interpolate between them for playback.
   if (t === 0) return a;
-  return { validTime: new Date(new Date(a.validTime).getTime() + (new Date(b.validTime).getTime() - new Date(a.validTime).getTime()) * t).toISOString(), eastKt, northKt, gustKt, ...components18(eastKt, northKt, gustKt), probability: mix(a.probability, b.probability),operatingDirection:a.operatingDirection===b.operatingDirection?a.operatingDirection:null };
+  return { validTime: new Date(new Date(a.validTime).getTime() + (new Date(b.validTime).getTime() - new Date(a.validTime).getTime()) * t).toISOString(), eastKt, northKt, gustKt, ...components18(eastKt, northKt, gustKt), probability: mix(a.probability, b.probability),operatingDirection:a.operatingDirection===b.operatingDirection?a.operatingDirection:null,directionBasis:a.directionBasis===b.directionBasis?a.directionBasis:undefined,directionCertainty:null };
 }
 export function sampleField(dataset: WindDataset, frame: WindFrame, lat: number, lon: number) {
   if (frame.eastKt === null || frame.northKt === null) return null;
@@ -106,7 +108,7 @@ export function sampleField(dataset: WindDataset, frame: WindFrame, lat: number,
 export function adaptBackendSnapshot(input: unknown): WindDataset {
   if (!input || typeof input !== 'object') throw new Error('Expected a forecast snapshot');
   const data = input as Record<string, unknown>;
-  if (data.schema_version !== '1.0' || !Array.isArray(data.forecast) || !Number.isFinite(Date.parse(String(data.generated_at)))) throw new Error('Unsupported or invalid forecast schema');
+  if (!['1.0','1.1'].includes(String(data.schema_version)) || !Array.isArray(data.forecast) || !Number.isFinite(Date.parse(String(data.generated_at)))) throw new Error('Unsupported or invalid forecast schema');
   const numeric = (value: unknown) => typeof value === 'number' && Number.isFinite(value) ? value : null;
   const frames = data.forecast.map((value: unknown): WindFrame => {
     if (!value || typeof value !== 'object') throw new Error('Invalid forecast point');
@@ -114,9 +116,11 @@ export function adaptBackendSnapshot(input: unknown): WindDataset {
     if (!Number.isFinite(Date.parse(String(row.valid_time)))) throw new Error('Invalid valid_time');
     const speed = numeric(row.wind_speed_kt), direction = numeric(row.wind_from_deg_true);
     const vector = speed !== null && speed >= 0 && (speed === 0 || (direction !== null && direction >= 0 && direction <= 360)) ? vectorFromWind(speed, direction ?? 0) : { eastKt: null, northKt: null };
+    const prediction = row.direction_forecast as Record<string,unknown> | undefined;
+    const od = prediction ? prediction.operating_direction : row.operating_direction;
     const winds = row.runway_wind as Record<string, Record<string, unknown>> | undefined;
     const runway = winds?.['18'];
-    return { validTime: String(row.valid_time), ...vector, gustKt: numeric(row.wind_gust_kt), tailwindKt: numeric(runway?.tailwind_kt), crosswindKt: numeric(runway?.crosswind_kt), gustCrosswindKt: numeric(runway?.gust_crosswind_kt), weatherState: row.rwy18_weather_state === 'usable' || row.rwy18_weather_state === 'not_usable' ? row.rwy18_weather_state : 'unknown', probability: numeric(row.p_rwy18_weather_usable), operatingDirection:row.operating_direction==='07'||row.operating_direction==='25'?row.operating_direction:null };
+    return { validTime: String(row.valid_time), ...vector, gustKt: numeric(row.wind_gust_kt), tailwindKt: numeric(runway?.tailwind_kt), crosswindKt: numeric(runway?.crosswind_kt), gustCrosswindKt: numeric(runway?.gust_crosswind_kt), weatherState: row.rwy18_weather_state === 'usable' || row.rwy18_weather_state === 'not_usable' ? row.rwy18_weather_state : 'unknown', probability: numeric(row.p_rwy18_weather_usable), operatingDirection:od==='07'||od==='25'?od:null,directionBasis:typeof prediction?.basis==='string'?prediction.basis:'challenge_rules_raw_weather',directionCertainty:prediction?.basis==='independently_trained_od_model'?numeric(prediction.certainty_score):null };
   });
   if (!frames.length || frames.some((frame, index) => index > 0 && Date.parse(frame.validTime) <= Date.parse(frames[index - 1].validTime))) throw new Error('Forecast points must be nonempty and strictly increasing');
   const current = data.current_weather as Record<string, unknown> | null;
@@ -235,4 +239,24 @@ export function operationalOutlook(dataset:WindDataset, now=Date.now()) {
     checked:future.filter(f=>f.tailwindKt!==null&&f.crosswindKt!==null&&f.gustCrosswindKt!==null).length,
     available:future.length,through:future.at(-1)?.validTime??null,
     peakSix:six.length?Math.max(...six.map(f=>f.tailwindKt!)):null,peakSixSamples:six.length};
+}
+
+/** Aircraft movement, never wind-from direction. No direction is inferred from wind. */
+export function airportDirection(dataset:WindDataset, hour:number, unavailable=false) {
+  const frame=frameAt(dataset,hour),reported=hour===0;
+  const direction=unavailable?null:reported?dataset.operations?.direction??null:frame.operatingDirection??null;
+  const learned=!reported&&frame.directionBasis==='independently_trained_od_model';
+  return {direction,heading:direction==='07'?70:direction==='25'?250:null,
+    label:direction==='07'?'Eastbound':direction==='25'?'Westbound':'Direction unavailable',
+    basis:unavailable?'Connection lost · last data retained':reported?'Reported operations':learned?'Learned direction forecast':'Weather-rule direction forecast',
+    time:reported?dataset.operations?.observedAt??null:frame.validTime,
+    source:reported?dataset.operations?.source??'No reported operations':learned?'Independent OD model':'Challenge baseline',
+    certainty:!unavailable&&!reported&&learned?frame.directionCertainty??null:null,
+    approach:direction==='07'?'west':direction==='25'?'east':null};
+}
+/** Sort real OSM runway endpoints into aircraft travel order, independent of source ordering. */
+export function movementEndpoints(coordinates:number[][], heading:number) {
+  const first=coordinates[0],last=coordinates[coordinates.length-1];
+  const along=(last[0]-first[0])*Math.cos(50*Math.PI/180)*Math.sin(heading*Math.PI/180)+(last[1]-first[1])*Math.cos(heading*Math.PI/180);
+  return along>=0?[first,last]:[last,first];
 }
