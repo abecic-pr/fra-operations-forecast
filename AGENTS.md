@@ -68,4 +68,4 @@ Research: `docs/izvori-podataka.md` and `docs/podaci-aplikacije.md`.
 
 ## Parallel runway traffic scope
 
-Philipp clarified on 30 October 2026 that the new next-plane landing/departure feature covers all three parallel runways, excluding RWY18. Keep the existing RWY18 weather analysis separate. Traffic assignments and positions must be independently supplied; never infer them from the airport-wide operating direction or schedule. See docs/airport-traffic.md.
+Philipp clarified on 30 October 2026 that the new next-plane landing/departure feature covers all three parallel runways, excluding RWY18. Runway 18 remains the primary focus of the software, dashboard and default map. The parallel-runway flight feature is supporting context and must not displace its forecast graph or status panel. Traffic assignments and positions must be independently supplied; never infer them from the airport-wide operating direction or schedule. See docs/airport-traffic.md.

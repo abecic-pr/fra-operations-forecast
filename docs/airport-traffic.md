@@ -1,6 +1,6 @@
 # Parallel runway flight overview
 
-Scope agreed 30 October 2026: the new landing/departure overview covers **07L/25R, 07C/25C and 07R/25L**, excluding departure-only RWY18. Existing RWY18 weather analysis remains available below the new dashboard section.
+Scope agreed 30 October 2026: the new landing/departure overview covers **07L/25R, 07C/25C and 07R/25L**, excluding departure-only RWY18. Runway 18 remains the primary application focus and leads the dashboard. The parallel-runway flight overview is secondary, under Other runways & flights. The map defaults to the original Runway 18 status and measured/forecast chart; Other runways is an optional view.
 
 `GET /api/traffic` reads `data/traffic.json`, collected with `python -m fra_forecast.traffic`. Normal weather refresh also collects traffic unless `--no-departures` is used. The UI polls the saved snapshot once per minute; external data refresh follows the existing refresh action. The collector requests the official FRA passenger arrivals and departures boards for 48 hours using bounded pagination, excluding completed/cancelled/ground services. Sources include coverage and error metadata. This is not a complete private/cargo aircraft inventory.
 

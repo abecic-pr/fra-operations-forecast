@@ -26,7 +26,7 @@ python3 -m fra_forecast refresh --live-only --history-days 1 --archive-days 0
 python3 -m fra_forecast serve
 ```
 
-The full map highlights the selected parallel runway and shows airport movement arrows. The dashboard retains its dedicated Runway 18 wind preview. The blue chart line is forecast tailwind and the
+The map defaults to Runway 18 with its status highlight and original measured/forecast chart. Airport direction remains visible; Other runways opens the optional traffic view. The dashboard leads with Runway 18 operational indicators and its dedicated wind preview. The blue chart line is forecast tailwind and the
 green line is source-screened DWD measured tailwind, labeled provisional. The
 clock marker shows actual UTC time independently of forecast playback. The UI
 reads saved data every 30 seconds and requests fresh sources every 10 minutes
