@@ -11,17 +11,17 @@
 <body>
   <a class="skip-link" href="#main">Skip to content</a>
   <header class="site-header">
-    <a class="brand" href="#main" aria-label="FRA Operations Forecast">
+    <a class="brand" href="/#dashboard" aria-label="Back to dashboard">
       <!-- Original Flightpath symbol from branding/assets/fra-symbol-blue.svg. -->
       <svg viewBox="0 0 256 256" width="36" height="36" aria-hidden="true"><path fill="currentColor" d="M48 212V84C48 48 72 28 108 28H224L188 64H112C94 64 84 72 84 90V108H196L160 144H84V212Q84 216 80 216H52Q48 216 48 212Z"/></svg>
       <span><strong>FRA</strong> Operations Forecast</span>
     </a>
-    <nav aria-label="Page sections"><a href="#pipeline">The pipeline</a><a href="#evidence">The evidence</a><a href="#outputs">The outputs</a></nav>
+    <nav aria-label="Page sections"><a href="/#dashboard">← Dashboard</a><a href="#pipeline">The pipeline</a><a href="#evidence">The evidence</a><a href="#outputs">The outputs</a></nav>
   </header>
   <main id="main">
     <section class="intro" aria-labelledby="title">
       <div><p class="context">Frankfurt Airport / AI Week 2026</p><h1 id="title">From wind forecasts<br>to runway decisions.</h1></div>
-      <div class="intro-note"><p>Our ML learns local wind errors, corrects the weather forecast, and estimates how often Runway 18’s wind limits are met.</p><span class="status">Research prototype</span></div>
+      <div class="intro-note"><p>Two learned components: correct local wind errors and predict airport-wide operating direction. Explore how weather becomes a 48-hour runway outlook.</p><span class="status">Research prototype</span></div>
     </section>
 
     <section id="pipeline" class="pipeline" aria-label="How our ML works">
@@ -60,7 +60,7 @@
         <div class="diagram sampling"><div class="sample-vector"><span>u error</span><span>v error</span><span>Gust error</span></div><p>Keep each error triple together</p><div class="sample-arrow" aria-hidden="true">↓</div><div class="sample-result"><strong>Passing weather samples</strong><span>256 samples</span></div><p class="caption">Missing gusts or an insufficient calibration pool produce an unavailable probability. Repeated samples are not independent weather events.</p></div>
       </div>
       <div id="panel-runways" class="step-panel" role="tabpanel" aria-labelledby="step-runways" tabindex="0" hidden>
-        <div class="explanation"><span class="phase">The runway interpretation</span><h3>Turn wind into<br>a runway outlook.</h3><p>Runway 18 departs south in either operating direction. All three 07/25 runways share one airport-wide eastbound or westbound direction.</p><p>The challenge rules translate wind into suitability and direction-change windows. Learned actual operating direction still needs independent historical labels.</p></div>
+        <div class="explanation"><span class="phase">The runway interpretation</span><h3>Turn wind into<br>a runway outlook.</h3><p>Runway 18 departs south in either operating direction. All three 07/25 runways share one airport-wide eastbound or westbound direction.</p><p>The challenge rules remain our baseline. A separate learned model predicts actual operating direction from forecast weather and recent measurements, using recovered historical direction labels. See the flow below.</p></div>
         <div class="diagram runway-diagram"><div class="runway-direction"><strong>07</strong><span>Eastbound / westbound</span><strong>25</strong></div><div class="parallel-runways" aria-hidden="true"><i></i><i></i><i></i></div><div class="runway18"><strong>18 ↓</strong><span>Southbound departures<br>in either operating direction</span></div><p class="caption">Schematic, not to scale. Weather suitability does not establish official runway status.</p></div>
       </div>
       <noscript><p class="notice">Enable JavaScript to explore all four steps and load the saved evaluation. The outputs and limitations below remain readable.</p></noscript>
@@ -81,14 +81,28 @@
           <div class="selection-results"><span class="phase">Validation selection</span><h3 id="winner-title"></h3><p id="selection-summary"></p><div id="candidate-bars" class="candidate-bars" aria-label="Validation wind-vector RMSE in knots"></div><p class="caption">Gate: lower vector RMSE, speed error no more than 2% worse, and no increase in gust error, with complete matched coverage.</p></div>
           <div class="test-results"><span class="phase">Exploratory test</span><h3>1, 6 and 24 hours ahead</h3><p>Wind-vector RMSE measures error in both speed and direction, in knots.</p><div class="table-scroll" tabindex="0" role="region" aria-label="Forecast quality tables"><table><caption>Wind-vector RMSE · kt</caption><thead><tr><th scope="col">Lead</th><th scope="col">Raw ICON-EU</th><th scope="col">Selected</th><th scope="col">Cases</th></tr></thead><tbody id="wind-scores"></tbody></table><table><caption>RWY18 Brier score · probability error</caption><thead><tr><th scope="col">Lead</th><th scope="col">Section 3 rules</th><th scope="col">Selected</th><th scope="col">Matched cases</th></tr></thead><tbody id="weather-scores"></tbody></table></div></div>
         </div>
-        <div class="finding"><strong>Better wind forecasts do not yet prove better runway decisions.</strong><p id="probability-summary"></p><p>Rare-event probability reliability and actual operating-direction skill remain unproven. A fresh holdout and independent operating-history labels are still needed.</p></div>
+        <div class="finding"><strong>Better wind forecasts do not yet prove better runway decisions.</strong><p id="probability-summary"></p><p>Runway 18 rare-event reliability remains unproven. Operating-direction results are shown separately below; a fresh holdout and verified transition labels are still needed.</p></div>
         <p id="report-provenance" class="caption"></p>
       </div>
     </section>
 
+    <section class="training" aria-labelledby="direction-title">
+      <div class="section-heading"><div><h2 id="direction-title">Which way will the airport operate?</h2><p>A separate model learns 07 eastbound versus 25 westbound.</p></div><a class="text-link" href="/api/operations-metrics">View direction report</a></div>
+      <div class="split" aria-label="Operating-direction model flow">
+        <div><strong>1 · Weather inputs</strong><span>Original ICON-EU forecast + one-hour-old DWD wind</span></div>
+        <div><strong>2 · Two classifiers</strong><span>Recent-weather logistic model + forecast-history logistic model</span></div>
+        <div><strong>3 · Equal blend</strong><span>Average their probabilities, with fixed 50/50 weights</span></div>
+        <div><strong>4 · Hourly outlook</strong><span>07 or 25, model certainty and next change window</span></div>
+      </div>
+      <p>The second classifier adds runway-aligned wind, time of day and trailing 3/6-hour forecast winds. Recent measurements fade with forecast lead. These trailing values come from the forecast, never future observations. Runway 18 remains southbound in either direction.</p>
+      <div class="table-scroll" tabindex="0" role="region" aria-label="Operating-direction evaluation"><table><caption>Saved operations-v3 results · 30 October 2026 · exploratory retrospective evaluation</caption><thead><tr><th scope="col">Lead</th><th scope="col">Rule accuracy</th><th scope="col">ML accuracy</th><th scope="col">Cases</th></tr></thead><tbody><tr><td>1 hour</td><td>71.9%</td><td>78.5%</td><td>135</td></tr><tr><td>6 hours</td><td>78.4%</td><td>77.6%</td><td>134</td></tr><tr><td>24 hours</td><td>76.1%</td><td>76.1%</td><td>134</td></tr><tr><td>All 1–48 hours</td><td>74.72%</td><td>77.60%</td><td>6,500</td></tr></tbody></table></div>
+      <p class="caption">Overall probability error (Brier score) falls from 0.25277 to 0.18763: 25.8% lower error, not a 25.8% accuracy gain. Six-hour accuracy is one correct case behind the rules; 24-hour accuracy ties.</p>
+      <div class="finding"><strong>Promising results, with explicit limits.</strong><p>182 days of DFLD direction displays yielded 4,259 provisional stable-state hourly labels. Stable-period filtering favors easier cases; 6,500 forecast cases cover 854 distinct target times. The later evaluation period was inspected during development. Probabilities remain uncalibrated, and precise change-time accuracy is unverified.</p></div>
+    </section>
+
     <section id="outputs" aria-labelledby="outputs-title">
       <div class="section-heading"><div><h2 id="outputs-title">What we can show today</h2><p>The challenge asks for every hour through t+48 h.</p></div><span class="status">Partial challenge completion</span></div>
-      <dl class="deliverables"><div><dt>Wind forecast</dt><dd><span class="state implemented">Implemented</span><p>48-hour comparison with validation-selected local corrections and raw-weather fallback.</p></dd></div><div><dt>RWY18 weather probability</dt><dd><span class="state provisional">Provisional</span><p>Joint residual sampling. Too few adverse weather events to establish reliability.</p></dd></div><div><dt>Airport-wide 07/25 + certainty</dt><dd><span class="state missing">Labels missing</span><p>Weather-rule direction is available. Learned direction and certainty remain unavailable.</p></dd></div><div><dt>Next probable change</dt><dd><span class="state provisional">Rule window only</span><p>Hourly change windows are available. Learned change timing and event probability remain unvalidated.</p></dd></div></dl>
+      <dl class="deliverables"><div><dt>Wind forecast</dt><dd><span class="state implemented">Implemented</span><p>48-hour comparison with validation-selected local corrections and raw-weather fallback.</p></dd></div><div><dt>RWY18 weather probability</dt><dd><span class="state provisional">Provisional</span><p>Joint residual sampling. Too few adverse weather events to establish reliability.</p></dd></div><div><dt>Airport-wide 07/25 + certainty</dt><dd><span class="state provisional">Learned · provisional</span><p>Two logistic classifiers estimate 07/25 probabilities. Certainty is the larger score, not verified probability calibration.</p></dd></div><div><dt>Next probable change</dt><dd><span class="state provisional">Hourly window</span><p>Changes in the hourly predicted direction define a window. Exact switch timing and event probability remain unvalidated.</p></dd></div></dl>
       <details><summary>The challenge rules behind the baseline</summary><ul><li>Landing tailwind ≥10 kt forces an immediate direction change.</li><li>Departure tailwind ≥15 kt prevents departure, including on RWY18.</li><li>Crosswind &gt;40 kt, including gusts, prevents runway use.</li><li>Smaller tailwind is tolerated for up to 30 minutes; persistence &gt;30 minutes changes direction.</li></ul><p>Hourly forecasts cannot resolve exact 30-minute persistence. Gust direction is approximated by mean wind direction when unavailable.</p></details>
       <details><summary>Model inputs, source data and reproducibility</summary><p>Inputs: forecast u/v wind components, gust and its missing indicator, model lead time, and sine/cosine of UTC hour and day of year. Ridge uses train-only imputation and scaling with alpha = 1. No driver importance ranking is claimed.</p><p>Forecasts: <a href="https://open-meteo.com/en/docs/single-runs-api">Open-Meteo explicit ICON-EU runs</a>. Reference observations: <a href="https://opendata.dwd.de/climate_environment/CDC/observations_germany/climate/10_minutes/">DWD station 01420</a>. METAR and current operations are separate live context, not future training inputs.</p><p>This page describes the comparison pipeline at <a href="/api/forecast-comparison">/api/forecast-comparison</a>. The original /api/forecast ML block retains its separate validation choice. GFS is an unranked live comparison; the optional AI coordinator explains results and cannot set numeric weights.</p><p>The repository and one-page model card are prepared. Jury forecasts still require organizer-supplied dates and format; the internal replay is an incomplete smoke export.</p></details>
     </section>
