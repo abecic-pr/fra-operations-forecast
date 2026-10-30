@@ -80,3 +80,14 @@ assert.equal(board.flights[0].timeBasis,'Estimated');
 assert.equal(board.status,'partial');
 assert.equal(departuresAdapter.frankfurtTime('2026-10-30T13:20:00Z'),'14:20');
 console.log('Departure checks passed: no invented runway, estimated departure precedence, partial source and Frankfurt time.');
+
+const kpiBase={...demo,mode:'live',generatedAt:'2026-10-30T10:00:00Z',currentObservation:undefined,frames:[
+  {...statusFrame,validTime:'2026-10-30T11:00:00Z',eastKt:3,northKt:4},
+  {...statusFrame,validTime:'2026-10-30T12:00:00Z',eastKt:-3,northKt:-4},
+  {...statusFrame,validTime:'2026-10-30T13:00:00Z',eastKt:null,northKt:null},
+  {...statusFrame,validTime:'2026-11-01T11:00:00Z',eastKt:100,northKt:0}]};
+const kpis=w.windSummary(kpiBase);
+assert.equal(kpis.current,null); assert.equal(kpis.maximum,5); assert.equal(kpis.average,5); assert.equal(kpis.count,2);
+assert.equal(w.windSummary({...kpiBase,currentObservation:{...statusFrame,eastKt:0,northKt:8}}).current,8);
+assert.equal(w.windSummary({...kpiBase,frames:[]}).average,null);
+console.log('Wind KPI checks passed: scalar speeds, missing observation, missing samples and 48-hour bounds.');

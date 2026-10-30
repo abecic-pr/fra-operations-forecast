@@ -190,3 +190,13 @@ export function comparisonPairs(observations: MeasuredWind[], forecasts: IssuedF
     return forecast?[{validTime:observation.validTime,predicted:forecast.tailwindKt,measured:observation.tailwindKt,error:forecast.tailwindKt-observation.tailwindKt,issuedAt:forecast.issuedAt}]:[];
   });
 }
+
+/** Scalar wind-speed KPIs; never average opposing vectors or substitute forecast for observation. */
+export function windSummary(dataset: WindDataset) {
+  const speed=(frame:WindFrame|undefined)=>frame&&frame.eastKt!==null&&frame.northKt!==null&&Number.isFinite(frame.eastKt)&&Number.isFinite(frame.northKt)?Math.hypot(frame.eastKt,frame.northKt):null;
+  const origin=Date.parse(dataset.generatedAt);
+  const available=dataset.frames.filter(frame=>{const at=Date.parse(frame.validTime);return at>origin&&at<=origin+48*3600000;}).flatMap(frame=>{const value=speed(frame);return value===null?[]:[{value,time:frame.validTime}];});
+  const peak=available.reduce<{value:number;time:string}|null>((max,point)=>!max||point.value>max.value?point:max,null);
+  const observation=dataset.currentObservation??(dataset.mode==='demo'?dataset.frames[0]:undefined);
+  return {current:speed(observation),observedAt:observation?.validTime??null,maximum:peak?.value??null,maximumAt:peak?.time??null,average:available.length?available.reduce((sum,point)=>sum+point.value,0)/available.length:null,count:available.length};
+}
