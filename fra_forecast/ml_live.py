@@ -12,13 +12,13 @@ from .sources import forecast
 from .wind_ml import ARTIFACT_VERSION, FEATURES, MODEL_VERSION
 
 
-def load_artifact(data_dir):
-    folder = Path(data_dir)/"models"/MODEL_VERSION
+def load_artifact(data_dir, model_version=MODEL_VERSION, expected_features=FEATURES):
+    folder = Path(data_dir)/"models"/model_version
     if not (folder/"manifest.json").exists():
         return None, None, "model_artifact_missing"
     try:
         manifest = json.loads((folder/"manifest.json").read_text())
-        if manifest["artifact_version"] != ARTIFACT_VERSION or manifest["features"] != FEATURES:
+        if manifest["artifact_version"] != ARTIFACT_VERSION or manifest["features"] != expected_features:
             return None,None,"model_artifact_incompatible"
         import joblib
         import sklearn
@@ -27,10 +27,18 @@ def load_artifact(data_dir):
         model_bytes = (folder/"model.joblib").read_bytes()
         if hashlib.sha256(model_bytes).hexdigest() != manifest["model_sha256"]:
             return None,None,"model_artifact_hash_mismatch"
+        report_bytes = (folder/"metrics.json").read_bytes()
+        if manifest.get("metrics_sha256") and hashlib.sha256(report_bytes).hexdigest() != manifest["metrics_sha256"]:
+            return None,None,"model_metrics_hash_mismatch"
         artifact = joblib.load(folder/"model.joblib")
-        if artifact.get("artifact_version") != ARTIFACT_VERSION or artifact.get("features") != FEATURES:
+        if artifact.get("artifact_version") != ARTIFACT_VERSION or artifact.get("features") != expected_features:
             return None,None,"model_artifact_incompatible"
-        return artifact,json.loads((folder/"metrics.json").read_text()),None
+        report = json.loads(report_bytes)
+        if artifact.get("model_version") != model_version or report.get("model_version") != model_version:
+            return None,None,"model_artifact_incompatible"
+        if artifact.get("experiment_id") != report.get("experiment_id"):
+            return None,None,"model_report_mismatch"
+        return artifact,report,None
     except ImportError:
         return None,None,"ml_dependencies_not_installed"
     except Exception:
@@ -39,6 +47,13 @@ def load_artifact(data_dir):
 
 
 def explicit_live_run(client, reference):
+    def coverage(data, run_at):
+        valid = {r["valid_time"] for r in data.get("hourly", [])
+                 if uv(r.get("wind_speed_kt"), r.get("wind_from_deg_true")) is not None
+                 and 5 <= (parse_time(r["valid_time"])-run_at).total_seconds()/3600 <= 72}
+        return sum(iso(reference+timedelta(hours=h)) in valid for h in range(1, 49))
+
+    preferred = None
     metadata_url = "https://api.open-meteo.com/data/dwd_icon_eu/static/meta.json"
     try:
         meta,_ = client.json("icon_eu_metadata",metadata_url)
@@ -46,18 +61,29 @@ def explicit_live_run(client, reference):
         available = datetime.fromtimestamp(meta["last_run_availability_time"],UTC)+timedelta(minutes=10)
         if available <= reference and reference-run_at <= timedelta(hours=24) and run_at <= reference:
             data = forecast(client,"icon_eu",run_at,forecast_days=4)
-            return data,{"model_run_at":iso(run_at),"available_at":iso(available),
+            provenance = {"model_run_at":iso(run_at),"available_at":iso(available),
                          "availability_basis":"provider_metadata_plus_ten_minute_replication_buffer",
                          "availability_verified":True,"metadata_url":metadata_url}
+            preferred = (data, provenance, coverage(data, run_at))
+            if preferred[2] == 48:
+                return data, provenance
     except (OSError,ValueError,KeyError):
         pass
     # This path records the assumption, never presenting run time as publication.
     eligible = reference-timedelta(hours=4)
     run_at = eligible.replace(hour=(eligible.hour//6)*6,minute=0,second=0,microsecond=0)
-    data = forecast(client,"icon_eu",run_at,forecast_days=4)
+    try:
+        data = forecast(client,"icon_eu",run_at,forecast_days=4)
+    except (OSError, ValueError, KeyError):
+        if preferred:
+            return preferred[0], {**preferred[1], "run_selection_reason": "partial_newer_run_older_run_unavailable"}
+        raise
+    if preferred and preferred[2] >= coverage(data, run_at):
+        return preferred[0], {**preferred[1], "run_selection_reason": "best_available_partial_run"}
     return data,{"model_run_at":iso(run_at),"available_at":iso(run_at+timedelta(hours=4)),
                  "availability_basis":"estimated_four_hour_delay_live_metadata_unavailable_for_reference",
-                 "availability_verified":False}
+                 "availability_verified":False,
+                 "run_selection_reason": "older_run_has_more_supported_hours" if preferred else "metadata_not_eligible"}
 
 
 def enrich(snapshot, data_dir, client, enabled=True):

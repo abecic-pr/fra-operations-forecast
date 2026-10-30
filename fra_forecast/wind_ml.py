@@ -190,11 +190,67 @@ def evaluate(rows, artifact):
     return result
 
 
+def fit_residuals(rows, linear=False, progress=print):
+    import numpy as np
+    from sklearn.ensemble import HistGradientBoostingRegressor
+    from sklearn.impute import SimpleImputer
+    from sklearn.linear_model import Ridge
+    from sklearn.pipeline import make_pipeline
+    from sklearn.preprocessing import StandardScaler
+    x, raw, actual = matrices(rows)
+    estimators = {}
+    for column, name in enumerate(("u", "v", "gust")):
+        mask = np.isfinite(raw[:, column]) & np.isfinite(actual[:, column])
+        if mask.sum() < 500:
+            if name != "gust":
+                raise ValueError(f"Insufficient {name} targets for training")
+            estimators[name] = None
+            continue
+        progress(f"Training {'linear' if linear else 'boosting'} {name} correction on {mask.sum()} rows…", flush=True)
+        estimator = (make_pipeline(SimpleImputer(strategy="median", keep_empty_features=True),
+                                  StandardScaler(), Ridge(alpha=1.0)) if linear
+                     else HistGradientBoostingRegressor(**PARAMETERS))
+        estimator.fit(x[mask], actual[mask, column] - raw[mask, column])
+        estimators[name] = estimator
+    return estimators
+
+
+def residual_calibration(rows, predicted):
+    import numpy as np
+    _, _, actual = matrices(rows)
+    residuals = actual - predicted
+    pools, report = {}, {}
+    for low, high in BANDS:
+        key = f"{low}-{high}"
+        mask = np.asarray([low <= r["model_lead_hours"] <= high for r in rows]) & np.isfinite(residuals).all(axis=1)
+        dates = {r["decision_time"][:10] for r, use in zip(rows, mask) if use}
+        enabled = int(mask.sum()) >= 100 and len(dates) >= 10
+        if enabled:
+            pools[key] = residuals[mask]
+        report[key] = {"joint_residuals": int(mask.sum()), "distinct_issue_dates": len(dates), "enabled": enabled}
+    return pools, report
+
+
+def save_artifact(data_dir, artifact, report):
+    import joblib
+    output = Path(data_dir)/"models"/artifact["model_version"]
+    output.mkdir(parents=True, exist_ok=True)
+    temp = output/"model.joblib.tmp"
+    joblib.dump(artifact, temp, compress=3)
+    temp.replace(output/"model.joblib")
+    write_json(output/"metrics.json", report)
+    write_json(output/"manifest.json", {
+        "artifact_version": artifact["artifact_version"], "features": artifact["features"],
+        "model_version": artifact["model_version"], "sklearn_version": artifact["sklearn_version"],
+        "model_sha256": hashlib.sha256((output/"model.joblib").read_bytes()).hexdigest(),
+        "metrics_sha256": hashlib.sha256((output/"metrics.json").read_bytes()).hexdigest(),
+        "trained_at": report["trained_at"]})
+
+
 def train(data_dir="data", progress=print):
     import joblib
     import numpy as np
     import sklearn
-    from sklearn.ensemble import HistGradientBoostingRegressor
     from threadpoolctl import threadpool_limits
 
     root = Path(data_dir)
@@ -205,24 +261,12 @@ def train(data_dir="data", progress=print):
         raise ValueError("Unsupported ML dataset version; rerun prepare-ml")
     groups, split = chronological_split(dataset["rows"])
     progress(f"Purged chronological partitions: { {k:len(v) for k,v in groups.items()} }",flush=True)
-    x, raw, actual = matrices(groups["train"])
     artifact = {"artifact_version":ARTIFACT_VERSION,"model_version":MODEL_VERSION,
                 "features":FEATURES,"sklearn_version":sklearn.__version__,
                 "estimators":{},"selected":{"wind":False,"gust":False},"calibration":{}}
     # Bound native parallelism for predictable laptop training/inference.
     with threadpool_limits(limits=2):
-        for column,name in enumerate(("u","v","gust")):
-            mask = np.isfinite(raw[:,column])&np.isfinite(actual[:,column])
-            if mask.sum() < 500:
-                if name == "gust":
-                    artifact["estimators"][name] = None
-                    progress("Insufficient gust targets; retaining raw gusts and gating probabilities on calibration coverage.",flush=True)
-                    continue
-                raise ValueError(f"Insufficient {name} targets for training: {mask.sum()}")
-            progress(f"Training {name} correction on {mask.sum()} rows…",flush=True)
-            estimator = HistGradientBoostingRegressor(**PARAMETERS)
-            estimator.fit(x[mask],actual[mask,column]-raw[mask,column])
-            artifact["estimators"][name] = estimator
+        artifact["estimators"] = fit_residuals(groups["train"], progress=progress)
         selection = [r for r in groups["selection"] if r["lead_time_hours"] <= 48]
         sx,sraw,sy = matrices(selection)
         candidates = corrected(artifact,sx,sraw,candidate=True)
@@ -239,17 +283,7 @@ def train(data_dir="data", progress=print):
         progress(f"Validation-selected corrections: {artifact['selected']}",flush=True)
         calibration = groups["calibration"]
         cx,craw,cy = matrices(calibration)
-        residuals = cy-corrected(artifact,cx,craw)
-        pool_report = {}
-        for low,high in BANDS:
-            key = f"{low}-{high}"
-            mask = np.asarray([low <= r["model_lead_hours"] <= high for r in calibration])&np.isfinite(residuals).all(axis=1)
-            days = {r["decision_time"][:10] for r,m in zip(calibration,mask) if m}
-            values = residuals[mask]
-            if len(days) >= 10 and len(values) >= 100:
-                artifact["calibration"][key] = values
-            pool_report[key] = {"joint_residuals":len(values),"distinct_issue_dates":len(days),
-                                "enabled":key in artifact["calibration"]}
+        artifact["calibration"], pool_report = residual_calibration(calibration, corrected(artifact,cx,craw))
         progress("Evaluating the frozen model once on the final chronological test period…",flush=True)
         test = evaluate(groups["test"],artifact)
     prep_path = root/"ml"/"preparation-report.json"
@@ -280,15 +314,7 @@ def train(data_dir="data", progress=print):
     low_coverage = min(coverage["unique_tailwind_limit_valid_times"],coverage["unique_crosswind_limit_valid_times"]) < 20
     report["probability_status"] = ("provisional_low_event_coverage" if low_coverage else "provisional_empirical") if artifact["calibration"] else "unavailable_insufficient_calibration"
     artifact["probability_status"] = report["probability_status"]
+    save_artifact(root, artifact, report)
     output = root/"models"/MODEL_VERSION
-    output.mkdir(parents=True,exist_ok=True)
-    temp = output/"model.joblib.tmp"
-    joblib.dump(artifact,temp,compress=3)
-    temp.replace(output/"model.joblib")
-    write_json(output/"metrics.json",report)
-    write_json(output/"manifest.json",{"artifact_version":ARTIFACT_VERSION,"features":FEATURES,
-               "model_version":MODEL_VERSION,"sklearn_version":sklearn.__version__,
-               "model_sha256":hashlib.sha256((output/"model.joblib").read_bytes()).hexdigest(),
-               "trained_at":report["trained_at"]})
     progress(f"Saved model and held-out metrics to {output}.",flush=True)
     return report

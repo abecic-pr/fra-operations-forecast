@@ -133,6 +133,27 @@ class ArtifactTests(unittest.TestCase):
         self.assertLessEqual(parse_time(provenance["available_at"]),reference)
         self.assertEqual(fetch.call_args.args[2],START+timedelta(hours=6))
 
+    def test_short_newer_run_does_not_truncate_48_hour_forecast(self):
+        reference = START+timedelta(hours=13)
+        newer, older = START+timedelta(hours=9), START+timedelta(hours=6)
+        class Client:
+            def json(self, *args):
+                return {"last_run_initialisation_time": newer.timestamp(),
+                        "last_run_availability_time": (START+timedelta(hours=12)).timestamp()}, {}
+        def data(run, hours):
+            return {"hourly": [{"valid_time": iso(run+timedelta(hours=h)), "wind_speed_kt": 8,
+                                "wind_from_deg_true": 70, "wind_gust_kt": None} for h in range(hours+1)]}
+        with patch("fra_forecast.ml_live.forecast", side_effect=lambda client, model, run, **kw: data(run, 30 if run == newer else 72)):
+            selected, provenance = explicit_live_run(Client(), reference)
+        self.assertEqual(provenance["model_run_at"], iso(older))
+        self.assertFalse(provenance["availability_verified"])
+        self.assertEqual(provenance["run_selection_reason"], "older_run_has_more_supported_hours")
+        self.assertIn(iso(reference+timedelta(hours=48)), [p["valid_time"] for p in selected["hourly"]])
+        with patch("fra_forecast.ml_live.forecast", side_effect=[data(newer, 30), OSError("offline")]):
+            partial, provenance = explicit_live_run(Client(), reference)
+        self.assertEqual(provenance["model_run_at"], iso(newer))
+        self.assertEqual(provenance["run_selection_reason"], "partial_newer_run_older_run_unavailable")
+
 
 @unittest.skipIf(np is None,"Install the optional [ml] dependencies for numerical ML tests")
 class NumericalTests(unittest.TestCase):

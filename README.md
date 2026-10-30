@@ -1,10 +1,12 @@
 # FRA Operations Forecast
 
+The [FraAlliance challenge brief](docs/challenge/README.md), with the unchanged original PDF alongside it, is this project's source of truth. Every project chat must read it under [AGENTS.md](AGENTS.md).
+
 Forecasting runway operating direction and Runway 18 weather suitability at Frankfurt Airport.
 
 FRA Operations Forecast is a research prototype for the **FraAlliance challenge at AI Week Frankfurt 2026**. The project aims to turn weather observations and forecasts into a probabilistic outlook for airport operations over the next 48 hours.
 
-**Status:** Weather ingestion, challenge-rule baseline, ICON-EU wind correction training, chronological evaluation, provisional RWY18 weather probabilities, public FRA departure records assessed for RWY18 weather, and a local JSON API. The teammate owns UI implementation and integration. Actual operating-direction and individual runway-use probabilities still require independent historical labels; those fields remain `null`.
+**Status:** Working weather ingestion and 48-hour forecast, validation-selected model comparison, GFS source comparison, discovery reports, optional AI coordinator, replay/export, and local JSON API. The one-page [model card](docs/model-card.md) records measured results and incomplete challenge deliverables. Learned operating direction still needs independent historical labels; the training/inference/evaluation code is implemented and those live probabilities remain `null`. The teammate owns UI.
 
 ## Objective
 
@@ -52,7 +54,7 @@ git clone https://github.com/abecic-pr/fra-operations-forecast.git
 cd fra-operations-forecast
 ```
 
-Python 3.11 or newer is required. The current backend uses only the standard library.
+Python 3.11 or newer is required. The baseline backend uses the standard library; model comparison and training use the existing optional ML dependencies.
 
 ```bash
 # Current observations and 48-hour forecast; requires internet access.
@@ -136,8 +138,43 @@ dataset is not yet evidence of leakage-free model accuracy.
 The six-hour hackathon constraint and division of work are recorded in
 [AGENTS.md](AGENTS.md). The teammate owns UI; backend work prioritizes runnable increments.
 
+## Airport and flight chatbot
+
+`POST /api/chat` answers questions from saved airport forecasts and public flight
+weather assessments, using an OpenAI key on the backend. It supports flight-number
+and codeshare lookup, follow-up context, source evidence and freshness warnings.
+Set `OPENAI_API_KEY` and `FRA_CHAT_MODEL` before starting the server. The teammate
+owns the chat panel; see [setup and the JSON contract](docs/chatbot.md).
+
 ## Project context
 
 Built for **AI Week Frankfurt, 30 October 2026**, based on the FraAlliance brief *Frankfurt Airport Operating Direction Forecast*.
 
 The prototype is intended for research and demonstration. Its predictions are not operational air traffic control instructions.
+
+## Comparison demo and submission handoff
+
+The [eastbound/westbound forecast](docs/operating-direction.md) now explicitly maps
+07/25 predictions to landing direction, approach side, and Centre departure runway.
+Runway 18 stays southbound in both directions. Read `direction_forecast` in either
+forecast endpoint; each point states whether it is learned or weather-rule based.
+
+The [comparison runbook](docs/model-comparison.md) covers discovery, five scored
+candidates, live GFS comparison, the optional AI coordinator, independent OD
+training, replay/export, and the local frozen-artifact bundle. The selected
+Ridge correction reduced validation vector RMSE from 5.517 to 4.377 kt.
+RWY18 probability improvement and actual operating-direction skill are not established.
+
+```bash
+source .venv/bin/activate
+python -m fra_forecast compare-models
+python -m fra_forecast discover-data --probe-gfs
+python -m fra_forecast refresh --live-only --no-departures
+python -m fra_forecast refresh-comparison
+python -m fra_forecast serve
+```
+
+The one-page submission card is [available as PDF](output/pdf/model-card.pdf)
+with [editable Markdown](docs/model-card.md). Jury dates and issue format are
+absent from the brief: populate [the issue template](examples/jury-issues.csv)
+only with actual organizer inputs before running `export-submission`.

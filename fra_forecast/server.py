@@ -1,23 +1,34 @@
 """Local JSON API for the teammate's UI; no assets or directory listing."""
 
+from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 from pathlib import Path
 import threading
+import time
 from urllib.parse import urlsplit
 
 from .pipeline import refresh
 from .wind_ml import MODEL_VERSION
+from . import chat
 
 
 def make_handler(data_dir):
     data_dir = Path(data_dir)
     refresh_lock = threading.Lock()
+    chat_lock = threading.Lock()
+    chat_slots = threading.BoundedSemaphore(2)
+    chat_requests = deque()
     routes = {
         "/api/forecast": (data_dir / "forecast.json", "application/json"),
         "/api/sources": (data_dir / "sources.json", "application/json"),
         "/api/model-metrics": (data_dir / "models" / MODEL_VERSION / "metrics.json", "application/json"),
         "/api/runway18/departures": (data_dir / "runway18-departures.json", "application/json"),
+        "/api/operations-metrics": (data_dir / "operations-evaluation.json", "application/json"),
+        "/api/discovery": (data_dir / "comparison" / "discovery.json", "application/json"),
+        "/api/model-comparison": (data_dir / "comparison" / "evaluation.json", "application/json"),
+        "/api/forecast-comparison": (data_dir / "comparison" / "forecast.json", "application/json"),
+        "/api/forecast-agent": (data_dir / "comparison" / "agent.json", "application/json"),
     }
 
     class Handler(BaseHTTPRequestHandler):
@@ -45,6 +56,8 @@ def make_handler(data_dir):
             self.send_body(200, body, content_type)
 
         def do_POST(self):
+            if urlsplit(self.path).path == "/api/chat":
+                return self.chat_reply()
             if urlsplit(self.path).path != "/api/refresh":
                 return self.send_json(404, {"error": "Not found"})
             # Require an explicit client header and reject cross-origin browser calls.
@@ -61,6 +74,39 @@ def make_handler(data_dir):
                 self.send_json(502, {"error": f"Data refresh failed: {exc}"})
             finally:
                 refresh_lock.release()
+
+        def chat_reply(self):
+            origin = self.headers.get("Origin")
+            expected = "http://" + self.headers.get("Host", "")
+            if self.headers.get("X-FRA-Chat") != "1" or (origin and origin != expected):
+                return self.send_json(403, {"error": "forbidden", "answer": "Chat requires X-FRA-Chat: 1 and a same-origin request."})
+            if self.headers.get_content_type() != "application/json" or self.headers.get("Transfer-Encoding"):
+                return self.send_json(400, {"error": "invalid_request", "answer": "Send application/json with Content-Length."})
+            try:
+                size = int(self.headers.get("Content-Length", "0"))
+            except ValueError:
+                size = 0
+            if not 0 < size <= chat.MAX_BODY:
+                return self.send_json(413 if size > chat.MAX_BODY else 400,
+                                      {"error": "invalid_body_size", "answer": "Chat body must contain 1–16384 bytes."})
+            try:
+                self.connection.settimeout(10)
+                body = json.loads(self.rfile.read(size))
+                chat.validate_request(body)
+            except (OSError, ValueError, UnicodeError):
+                return self.send_json(400, {"error": "invalid_request", "answer": "Invalid chat message, history or JSON body."})
+            with chat_lock:
+                now = time.monotonic()
+                while chat_requests and chat_requests[0] <= now - 60:
+                    chat_requests.popleft()
+                if len(chat_requests) >= 12 or not chat_slots.acquire(blocking=False):
+                    return self.send_json(429, {"error": "rate_limited", "answer": "Chat is busy. Try again shortly."})
+                chat_requests.append(now)
+            try:
+                status, result = chat.run(data_dir, body)
+                self.send_json(status, result)
+            finally:
+                chat_slots.release()
 
     return Handler
 

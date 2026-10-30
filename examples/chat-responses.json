@@ -1,0 +1,286 @@
+{
+  "synthetic": true,
+  "description": "Synthetic UI integration fixtures, not real flight records or forecasts.",
+  "examples": [
+    {
+      "name": "flight_conditions",
+      "request": {
+        "message": "What conditions are expected for this flight?",
+        "history": [],
+        "selected_flight_id": "fixture-0"
+      },
+      "http_status": 200,
+      "response": {
+        "schema_version": "1.0",
+        "status": "answered",
+        "answer": "TEST 001 is scheduled for 30 October 2026 at 14:30+01:00. Its RWY18 assessment uses the 14:00 and 15:00 local forecast samples, with separate provisional weather-suitability probabilities of 20% and 90%. There is no exact 14:30 probability, confirmed runway assignment or wheels-off estimate. [e1]",
+        "generated_at": "2026-10-30T12:00:00Z",
+        "display_timezone": "Europe/Berlin",
+        "evidence": [
+          {
+            "id": "e1",
+            "tool": "get_flight_conditions",
+            "data": {
+              "status": "available",
+              "source": {
+                "status": "available",
+                "coverage_complete": true,
+                "requested_start": null,
+                "requested_end": null,
+                "source_updated_at": null,
+                "generated_at": "2026-10-30T12:00:00Z",
+                "source_url": "https://www.frankfurt-airport.com/en/flights-and-transfer/departures.html",
+                "freshness": {
+                  "status": "recent",
+                  "age_seconds": 0
+                }
+              },
+              "flight": {
+                "flight_id": "fixture-0",
+                "flight_number": "TEST 001",
+                "codeshares": [
+                  "TEST 002"
+                ],
+                "airline": "Fixture airline",
+                "destination_iata": "AAA",
+                "destination": "Fixture city",
+                "scheduled_departure_at": "2026-10-30T13:30:00Z",
+                "estimated_departure_at": null,
+                "assessment_at": "2026-10-30T13:30:00Z",
+                "assessment_time_basis": "scheduled_departure_proxy",
+                "assessment_time_is_takeoff_estimate": false,
+                "estimated_takeoff_at": null,
+                "assigned_runway": null,
+                "status": "Gate open",
+                "terminal": null,
+                "gate": null,
+                "source": "frankfurt_airport_public_departure_board",
+                "source_url": "https://www.frankfurt-airport.com/en/flights-and-transfer/departures.html",
+                "source_updated_at": null,
+                "fetched_at": "2026-10-30T12:00:00Z",
+                "display_times": {
+                  "scheduled_departure_at": "2026-10-30T14:30+01:00",
+                  "estimated_departure_at": null,
+                  "assessment_at": "2026-10-30T14:30+01:00"
+                }
+              },
+              "runway18": {
+                "runway": "18",
+                "takeoff_direction": "south",
+                "heading_deg_true": 180,
+                "assignment_status": "unknown",
+                "p_departure_from_rwy18": null,
+                "weather_state": "usable",
+                "p_weather_usable": null,
+                "sample_probability_range": {
+                  "min": 0.2,
+                  "max": 0.9
+                },
+                "forecast_samples": [
+                  {
+                    "valid_time": "2026-10-30T13:00:00Z",
+                    "wind_speed_kt": 5,
+                    "wind_from_deg_true": 180,
+                    "wind_gust_kt": 8,
+                    "tailwind_kt": 0.0,
+                    "crosswind_kt": 0.0,
+                    "gust_crosswind_kt": 0.0,
+                    "gust_direction_approximated": true,
+                    "weather_state": "usable",
+                    "p_weather_usable": 0.2,
+                    "probability_status": "provisional_low_event_coverage",
+                    "source_model": "icon_eu",
+                    "model_run_at": null,
+                    "prediction_status": "raw_icon_eu_validation_fallback",
+                    "valid_time_local": "2026-10-30T14:00+01:00"
+                  },
+                  {
+                    "valid_time": "2026-10-30T14:00:00Z",
+                    "wind_speed_kt": 5,
+                    "wind_from_deg_true": 180,
+                    "wind_gust_kt": 8,
+                    "tailwind_kt": 0.0,
+                    "crosswind_kt": 0.0,
+                    "gust_crosswind_kt": 0.0,
+                    "gust_direction_approximated": true,
+                    "weather_state": "usable",
+                    "p_weather_usable": 0.9,
+                    "probability_status": "provisional_low_event_coverage",
+                    "source_model": "icon_eu",
+                    "model_run_at": null,
+                    "prediction_status": "raw_icon_eu_validation_fallback",
+                    "valid_time_local": "2026-10-30T15:00+01:00"
+                  }
+                ],
+                "time_alignment": "bracketing_hours",
+                "scope": "weather_at_forecast_samples_only",
+                "forecast_generated_at": "2026-10-30T12:00:00Z",
+                "forecast_age_seconds": 0,
+                "data_status": "recent"
+              },
+              "airport_snapshot_mismatch": false
+            },
+            "warnings": [
+              "Flight weather is assessed at a published departure-time proxy, not an estimated wheels-off time.",
+              "RWY18 weather suitability/provisional probability does not establish this flight's runway, delay risk or official runway status.",
+              "Hourly samples are separate forecasts; their probability range is not a confidence interval or an exact departure-time probability."
+            ]
+          }
+        ],
+        "warnings": [
+          "Flight weather is assessed at a published departure-time proxy, not an estimated wheels-off time.",
+          "RWY18 weather suitability/provisional probability does not establish this flight's runway, delay risk or official runway status.",
+          "Hourly samples are separate forecasts; their probability range is not a confidence interval or an exact departure-time probability."
+        ],
+        "model": null,
+        "usage": [
+          {
+            "input_tokens": null,
+            "output_tokens": null,
+            "total_tokens": null
+          },
+          {
+            "input_tokens": null,
+            "output_tokens": null,
+            "total_tokens": null
+          }
+        ],
+        "elapsed_seconds": 0.003
+      }
+    },
+    {
+      "name": "ambiguous_flight",
+      "request": {
+        "message": "Weather for TEST002?"
+      },
+      "http_status": 200,
+      "response": {
+        "schema_version": "1.0",
+        "status": "needs_clarification",
+        "answer": "Which departure do you mean? TEST 001 on 2026-10-30T14:30+01:00; TEST 001 on 2026-10-31T14:30+01:00",
+        "generated_at": "2026-10-30T12:00:00Z",
+        "display_timezone": "Europe/Berlin",
+        "evidence": [
+          {
+            "id": "e1",
+            "tool": "find_departures",
+            "data": {
+              "status": "available",
+              "source": {
+                "status": "available",
+                "coverage_complete": true,
+                "requested_start": null,
+                "requested_end": null,
+                "source_updated_at": null,
+                "generated_at": "2026-10-30T12:00:00Z",
+                "source_url": "https://www.frankfurt-airport.com/en/flights-and-transfer/departures.html",
+                "freshness": {
+                  "status": "recent",
+                  "age_seconds": 0
+                }
+              },
+              "matched_count": 2,
+              "truncated": false,
+              "needs_clarification": true,
+              "departures": [
+                {
+                  "flight_id": "fixture-0",
+                  "flight_number": "TEST 001",
+                  "codeshares": [
+                    "TEST 002"
+                  ],
+                  "airline": "Fixture airline",
+                  "destination_iata": "AAA",
+                  "destination": "Fixture city",
+                  "scheduled_departure_at": "2026-10-30T13:30:00Z",
+                  "estimated_departure_at": null,
+                  "assessment_at": "2026-10-30T13:30:00Z",
+                  "assessment_time_basis": "scheduled_departure_proxy",
+                  "assessment_time_is_takeoff_estimate": false,
+                  "estimated_takeoff_at": null,
+                  "assigned_runway": null,
+                  "status": "Gate open",
+                  "terminal": null,
+                  "gate": null,
+                  "source": "frankfurt_airport_public_departure_board",
+                  "source_url": "https://www.frankfurt-airport.com/en/flights-and-transfer/departures.html",
+                  "source_updated_at": null,
+                  "fetched_at": "2026-10-30T12:00:00Z",
+                  "display_times": {
+                    "scheduled_departure_at": "2026-10-30T14:30+01:00",
+                    "estimated_departure_at": null,
+                    "assessment_at": "2026-10-30T14:30+01:00"
+                  }
+                },
+                {
+                  "flight_id": "fixture-1",
+                  "flight_number": "TEST 001",
+                  "codeshares": [
+                    "TEST 002"
+                  ],
+                  "airline": "Fixture airline",
+                  "destination_iata": "AAA",
+                  "destination": "Fixture city",
+                  "scheduled_departure_at": "2026-10-31T13:30:00Z",
+                  "estimated_departure_at": null,
+                  "assessment_at": "2026-10-31T13:30:00Z",
+                  "assessment_time_basis": "scheduled_departure_proxy",
+                  "assessment_time_is_takeoff_estimate": false,
+                  "estimated_takeoff_at": null,
+                  "assigned_runway": null,
+                  "status": "Gate open",
+                  "terminal": null,
+                  "gate": null,
+                  "source": "frankfurt_airport_public_departure_board",
+                  "source_url": "https://www.frankfurt-airport.com/en/flights-and-transfer/departures.html",
+                  "source_updated_at": null,
+                  "fetched_at": "2026-10-30T12:00:00Z",
+                  "display_times": {
+                    "scheduled_departure_at": "2026-10-31T14:30+01:00",
+                    "estimated_departure_at": null,
+                    "assessment_at": "2026-10-31T14:30+01:00"
+                  }
+                }
+              ],
+              "matched_flight_conditions": null,
+              "limitations": [
+                "Matches are saved upcoming primary services, not confirmed RWY18 departures.",
+                "Cancelled, departed and off-block records are excluded by ingestion; missing does not mean cancelled."
+              ]
+            },
+            "warnings": []
+          }
+        ],
+        "warnings": [],
+        "model": null,
+        "usage": [
+          {
+            "input_tokens": null,
+            "output_tokens": null,
+            "total_tokens": null
+          }
+        ],
+        "elapsed_seconds": 0.001
+      }
+    },
+    {
+      "name": "missing_configuration",
+      "request": {
+        "message": "Conditions tomorrow?"
+      },
+      "http_status": 503,
+      "response": {
+        "schema_version": "1.0",
+        "status": "unavailable_configuration",
+        "answer": "Chat is not configured on this backend.",
+        "generated_at": "2026-10-30T12:00:00Z",
+        "display_timezone": "Europe/Berlin",
+        "evidence": [],
+        "warnings": [],
+        "model": null,
+        "usage": [],
+        "error": "unavailable_configuration"
+      }
+    }
+  ]
+}

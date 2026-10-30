@@ -3,7 +3,7 @@ import unittest
 
 from fra_forecast.dataset import build_dataset, dataset_report
 from fra_forecast.domain import DirectionState, iso, parse_time, prediction_features, runway_conditions, wind_components
-from fra_forecast.pipeline import live_snapshot
+from fra_forecast.pipeline import live_snapshot, next_change
 from fra_forecast.sources import parse_forecast, parse_unh
 
 
@@ -66,6 +66,23 @@ class RuleTests(unittest.TestCase):
 
 
 class DataTests(unittest.TestCase):
+    def test_unknown_becoming_known_is_not_a_change(self):
+        points = [{"valid_time": iso(START), "state": "usable"}]
+        self.assertEqual(next_change(points, "state", "unknown")["status"], "unknown")
+        points.append({"valid_time": iso(START+timedelta(hours=1)), "state": "not_usable"})
+        change = next_change(points, "state", "unknown")
+        self.assertEqual(change["from"], "usable")
+        self.assertEqual(change["earliest"], iso(START))
+
+    def test_source_specific_publication_delay(self):
+        data = {"hourly": {"time": ["2026-10-20T08:00"], "wind_speed_10m": [5]},
+                "hourly_units": {"wind_speed_10m": "kn"}}
+        row = parse_forecast(data, "gfs_global", {"fetched_at": iso(START)}, START, 6)["hourly"][0]
+        self.assertEqual(row["available_at"], iso(START+timedelta(hours=6)))
+        self.assertFalse(row["availability_verified"])
+        with self.assertRaises(ValueError):
+            parse_forecast(data, "gfs_global", {}, START, -1)
+
     def test_explicit_timezone_required(self):
         with self.assertRaises(ValueError):
             parse_time("2026-10-20T12:00:00")

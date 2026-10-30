@@ -11,7 +11,7 @@ from .sources import (SourceClient, current_metar, current_operations, dwd_obser
 
 
 def next_change(points, field, initial):
-    previous = initial
+    previous = None if initial in (None, "unknown") else initial
     previous_time = None
     gap = False
     for row in points:
@@ -121,6 +121,10 @@ def refresh(root, history_days=14, archive_days=7, labels_path=None, live_only=F
     snapshot["taf"] = taf
     from .ml_live import enrich
     enrich(snapshot,root,client,enabled=use_ml)
+    from .operations_ml import enrich as enrich_operations
+    enrich_operations(snapshot, root, enabled=use_ml)
+    from .direction import enrich as enrich_direction
+    enrich_direction(snapshot)
     snapshot["runway18_departures_url"] = "/api/runway18/departures"
     write_json(root / "forecast.json", snapshot)
     if operations:

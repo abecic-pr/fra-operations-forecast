@@ -44,9 +44,12 @@ def write_csv(path, rows, fieldnames=None):
 
 
 class SourceClient:
-    def __init__(self, root, timeout=30):
+    def __init__(self, root, timeout=30, attempts=3):
+        if attempts not in (1, 2, 3):
+            raise ValueError("Source attempts must be between 1 and 3")
         self.root = Path(root)
         self.timeout = timeout
+        self.attempts = attempts
         self.checks = []
 
     def get(self, source, url, immutable=False):
@@ -59,7 +62,7 @@ class SourceClient:
             meta = json.loads(meta_path.read_text())
             self.checks.append({**meta, "cached": True})
             return body_path.read_bytes(), meta
-        for attempt in range(3):
+        for attempt in range(self.attempts):
             try:
                 req = urllib.request.Request(url, headers={"User-Agent": "FRA-Hackathon/0.1 (public data research)"})
                 with urllib.request.urlopen(req, timeout=self.timeout) as response:
@@ -84,7 +87,7 @@ class SourceClient:
                 if isinstance(exc,HTTPError) and exc.code in (400,401,403,404):
                     self.checks.append({"source":source,"url":url,"status":"error","error":str(exc)})
                     raise
-                if attempt == 2:
+                if attempt == self.attempts-1:
                     self.checks.append({"source": source, "url": url, "status": "error", "error": str(exc)})
                     raise
                 if isinstance(exc,HTTPError) and exc.code == 429:
@@ -181,7 +184,9 @@ def current_metar(client):
             "cloud_layers": raw.get("clouds", []), "raw_metar": raw.get("rawOb")}
 
 
-def parse_forecast(data, model, meta, run_at=None):
+def parse_forecast(data, model, meta, run_at=None, availability_delay_hours=4):
+    if not 0 <= availability_delay_hours <= 24:
+        raise ValueError("Forecast publication delay must be between 0 and 24 hours")
     result = {"hourly": [], "minutely_15": []}
     for block, resolution in [("hourly", 60), ("minutely_15", 15)]:
         series = data.get(block, {})
@@ -191,8 +196,10 @@ def parse_forecast(data, model, meta, run_at=None):
                    "source": "open_meteo", "model": model, "resolution_minutes": resolution,
                    "model_run_at": iso(run_at) if run_at else None,
                    "fetched_at": meta["fetched_at"],
-                   "available_at": iso(run_at + timedelta(hours=4)) if run_at else meta["fetched_at"],
-                   "availability_basis": "estimated_four_hour_model_delay" if run_at else "retrieved_live",
+                   "available_at": iso(run_at + timedelta(hours=availability_delay_hours)) if run_at else meta["fetched_at"],
+                   "availability_basis": ("estimated_four_hour_model_delay" if availability_delay_hours == 4
+                                          else f"estimated_{availability_delay_hours}_hour_model_delay") if run_at else "retrieved_live",
+                   "availability_verified": False,
                    "latitude": data.get("latitude"), "longitude": data.get("longitude")}
             for old, new in [("wind_speed_10m", "wind_speed_kt"), ("wind_direction_10m", "wind_from_deg_true"),
                              ("wind_gusts_10m", "wind_gust_kt")]:
@@ -206,7 +213,7 @@ def parse_forecast(data, model, meta, run_at=None):
     return result
 
 
-def forecast(client, model, run_at=None, forecast_days=3):
+def forecast(client, model, run_at=None, forecast_days=3, availability_delay_hours=4):
     params = {"latitude": LAT, "longitude": LON, "hourly": WIND_FIELDS,
               "models": model, "wind_speed_unit": "kn", "timezone": "UTC"}
     if run_at:
@@ -218,7 +225,7 @@ def forecast(client, model, run_at=None, forecast_days=3):
             params.update(minutely_15=WIND_FIELDS, forecast_minutely_15=196)
         base = "https://api.open-meteo.com/v1/forecast"
     data, meta = client.json(f"forecast_{model}", base + "?" + urlencode(params), immutable=bool(run_at))
-    return parse_forecast(data, model, meta, run_at)
+    return parse_forecast(data, model, meta, run_at, availability_delay_hours)
 
 
 def parse_unh(body, fetched_at):

@@ -105,14 +105,14 @@ Start `python3 -m fra_forecast serve`. The server exposes these routes at
 
 | Route | Result |
 | --- | --- |
-| `GET /api/forecast` | The existing version 1.0 snapshot, without schema changes |
+| `GET /api/forecast` | Version 1.1 snapshot, preserving baseline fields and adding separate ML blocks |
 | `GET /api/sources` | The latest source diagnostics |
 | `GET /api/model-metrics` | Full locally trained model evaluation, or 404 if unavailable |
 | `POST /api/refresh` | Fetch current data and return the new snapshot |
 
 The refresh action requires the `X-FRA-Refresh: 1` header and rejects a different
 browser origin. Only one refresh runs at a time. There is no automatic polling
-of external providers. JSON schema 1.0 and baseline calculations are unchanged.
+of external providers. Baseline field meanings and calculations are unchanged.
 
 For frontend development, proxy `/api/*` through the frontend's own server to
 this loopback API. Preserve the browser-facing `Host` header on proxied requests
@@ -137,3 +137,78 @@ and `forecast_hours_available`. A refresh failure outside that fallback returns
 The temporary inspection UI has been removed. The teammate owns the replacement
 UI. Preserve the distinctions between observations, forecasts, predictions,
 missing gusts, weather suitability, observed use, and official runway status.
+
+`POST /api/chat` adds read-only airport/flight questions using a backend OpenAI key.
+It has its own response schema and leaves the existing forecast/departure outputs
+unchanged. See [the chatbot contract](chatbot.md) for configuration, request and
+response fields, source evidence, history limits and error handling.
+
+## Additive comparison and operating-direction outputs
+
+`forecast[].direction_forecast` and top-level `operating_direction_outlook` now
+provide explicit eastbound/westbound movement, landing approach side/runway ends,
+Centre departure runway, and the separate southbound RWY18 interpretation.
+They are present in both forecast endpoints. See the exact [07/25 contract](operating-direction.md).
+Weather-derived output is labeled by its basis and never filled with invented
+actual-OD probabilities; existing baseline and learned fields are preserved.
+
+Implementation commands, validation policy, and examples are in
+[model-comparison.md](model-comparison.md). The snapshot stays version 1.1; the
+following optional blocks do not change legacy baseline or departure fields.
+
+- `forecast[].operations_ml`: `status`, `reason` when unavailable, learned
+  `operating_direction`, `p_od07`, `p_od25`, and `certainty_score`. Available
+  predictions also have `model_version`, `probability_status`,
+  `certainty_basis: model_class_probability`, and `initial_direction_known`.
+  All learned values are null without a compatible independently trained artifact.
+- `operations_model`: artifact availability/reason and `next_change`. Its method
+  is `predicted_hourly_class_change`; earliest/latest bracket the first class
+  change, with null event probability. Unknown initial state is not a change.
+  A missing interval widens the window and marks `uncertain_due_to_gap`.
+- Existing per-hour `operating_direction` and top-level change remain the rule
+  baseline. `forecast[].ml` remains the legacy wind artifact and retains its
+  probability identity. Read the separate comparison endpoint for the newly
+  selected wind correction; do not mix a model's wind with another's probability.
+
+| GET route | Saved JSON and meaning |
+| --- | --- |
+| `/api/discovery` | `comparison/discovery.json`: coverage, missing fields, validation patterns, bounded GFS probe and source provenance |
+| `/api/model-comparison` | `comparison/evaluation.json`: immutable experiment ID, dataset hash, partitions, validation policy, exploratory test and calibration reports |
+| `/api/forecast-comparison` | `comparison/forecast.json`: 48 aligned candidate/selected forecasts and disagreement |
+| `/api/forecast-agent` | `comparison/agent.json`: last coordinator result, configuration/failure status, numeric decision, explanation, inspected evidence refs and tool trace |
+| `/api/operations-metrics` | `operations-evaluation.json`: independent-label OD report or explicit unavailable reason |
+
+These routes are read-only and return 404 until their command has produced a
+file. They do not train, refresh, or invoke a paid model. Saved comparison reports
+use schema `1.0` independently of the main forecast snapshot.
+
+`forecast-comparison` contains `model_version`, `experiment_id`,
+`forecast_reference_time`, `generated_at`, `snapshot_generated_at`,
+`snapshot_age_seconds`, `status`, `policy`, `source_errors`, `model_error`,
+`limitations`, `next_rule_direction_change`, and the copied `operations_model`.
+Each `forecast[]` item has `valid_time`, integer `lead_time_hours`, `candidates`,
+`selected`, `disagreement`, and the existing learned `operations_ml` block.
+
+Candidate keys: `raw_icon_eu`, `persistence`, `boosting_correction`,
+`linear_correction`, `equal_blend`, `raw_gfs`. Each contains wind in knots/degrees
+true, `source_model`, source run/availability/retrieval metadata,
+`prediction_status`, `selection_eligible`, rule OD/runway components, and separate
+`p_rwy18_weather_usable` / `probability_status`. Persistence instead carries its
+observation timestamp. Unavailable values are null; only raw and selected
+candidates have their own calibrated residual pools. `raw_gfs` is unranked.
+
+`selected` adds `policy_winner`, `effective_candidate`, exact `weights`, and
+`fallback_reason`. Its OD is still deterministic. `disagreement` has candidate
+count, speed/gust ranges, largest vector difference, and conflicting RWY18
+weather states; it is descriptive, not probabilistic uncertainty.
+
+The comparison is `stale_snapshot` after two hours, `unavailable` if every
+selected wind is missing, otherwise `available`; inspect each hour for partial
+coverage. A newly generated comparison can still refer to an old snapshot.
+The coordinator rechecks age and matching experiment IDs before recommending
+the saved policy. Preserve these caveats in the UI.
+
+Submission exports use a separate internal schema `1.0`: 48 rows per explicit
+issue, with source/model metadata and null learned OD when unavailable.
+`report.json` carries coverage, artifact/data identities, availability assumptions,
+and `jury_schema_confirmed: false`; `incomplete` is not submission-ready.
