@@ -33,6 +33,7 @@ const payload = {schema_version:'1.0',generated_at:'2026-10-30T10:00:00Z',foreca
  {valid_time:'2026-10-30T12:00:00Z',wind_speed_kt:null,wind_from_deg_true:null,rwy18_weather_state:'unknown'}
 ]};
 const live = w.adaptBackendSnapshot(payload);
+assert.deepEqual(w.adaptBackendSnapshot({...payload,schema_version:'1.1',forecast:payload.forecast.map(row=>({...row,ml:{p_rwy18_weather_usable:.9}}))}),live,'Additive ML fields must not replace baseline values');
 assert.equal(live.mode,'live'); assert.equal(live.spatialMode,'uniform-airport');
 assert.equal(live.frames[0].tailwindKt,20); assert.equal(live.frames[0].probability,null);
 assert.equal(live.frames[1].eastKt,null); assert.equal(live.frames[1].tailwindKt,null);

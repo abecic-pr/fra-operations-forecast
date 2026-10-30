@@ -12,9 +12,9 @@ With no key, questions are not sent to OpenAI. Preview charts & map returns actu
 
 ## API
 
-- `GET /api/ui-chat/status`: key presence boolean, model, provider and read-only flag. No secret is returned.
-- `GET /api/ui-chat/preview`: deterministic labeled real-data preview with a chart and map.
-- `POST /api/ui-chat`: `{message, history:[{role,content}], selected_time}`. Requires same-origin `X-FRA-Chat: 1`; one answer at a time, 40 KB body, 4,000-character question, at most 12 prior messages. The response includes `answer`, concise `explanation`, source dataset IDs, `visuals`, `mode`, model and timestamp. Authentication, provider limits and failures return distinct errors without upstream body leakage.
+- `GET /api/weather-bot/status`: key presence boolean, model, provider and read-only flag. No secret is returned.
+- `GET /api/weather-bot/preview`: deterministic labeled real-data preview with a chart and map.
+- `POST /api/weather-bot`: `{message, history:[{role,content}], selected_time}`. Requires same-origin `X-FRA-Chat: 1`; one answer at a time, 40 KB body, 4,000-character question, at most 12 prior messages. The response includes `answer`, concise `explanation`, source dataset IDs, `visuals`, `mode`, model and timestamp. Authentication, provider limits and failures return distinct errors without upstream body leakage.
 
 The model reasons internally. The UI shows a truthful working state while the request runs and returns a concise evidence explanation; it does not expose hidden chain-of-thought or pretend staged progress is model reasoning. Previous messages are kept only in browser component memory, not saved on the backend; New chat clears them. `store:false` is sent to OpenAI. This is a local tool on loopback; public deployment requires authentication and per-user rate limits.
 
@@ -38,4 +38,4 @@ Official implementation references:
 - [Reasoning models](https://developers.openai.com/api/docs/guides/reasoning)
 - [GPT-5 Mini capabilities](https://developers.openai.com/api/docs/models/gpt-5-mini)
 
-Antonio’s tool-calling airport/flight assistant is preserved independently at `/api/chat`; see [its contract](chatbot.md). The dashboard retains the visual assistant contract at `/api/ui-chat`. Both remain disconnected without backend credentials.
+Antonio’s tool-calling airport/flight assistant is preserved independently at `/api/chat`; see [its contract](chatbot.md). The dashboard retains the visual assistant contract at `/api/weather-bot`. Both remain disconnected without backend credentials.

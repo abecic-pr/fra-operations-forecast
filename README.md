@@ -196,7 +196,7 @@ The dashboard includes a project assistant with data lookups, forecast charts an
 
 To enable AI answers, add `OPENAI_API_KEY` to the ignored root `.env` file (see `.env.example`). The default backend model is `gpt-5-mini`; set `OPENAI_MODEL` to change it. Keep the key on the Python backend, never in VITE_ variables. The status refreshes automatically; no key is committed. A real OpenAI completion still needs account/model access and has not been tested without a key.
 
-See [AI Weather Bot setup and data contract](docs/ai-weather-bot.md) for source scope, limits and the `/api/ui-chat` endpoints. The model reasons internally and returns a short explanation with sources. Weather suitability and official runway closure remain distinct.
+See [AI Weather Bot setup and data contract](docs/ai-weather-bot.md) for source scope, limits and the `/api/weather-bot` endpoints. The model reasons internally and returns a short explanation with sources. Weather suitability and official runway closure remain distinct.
 
 ## Comparison demo and submission handoff
 

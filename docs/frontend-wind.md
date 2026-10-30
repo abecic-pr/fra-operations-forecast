@@ -1,6 +1,6 @@
 # Runway 18 live wind UI
 
-The current local UI uses Antonio's live schema 1.0 API. The synthetic provider remains available for development but is not an automatic fallback.
+The current local UI uses Antonio's live schema 1.0/1.1 API (raw baseline fields). The synthetic provider remains available for development but is not an automatic fallback.
 
 ## Local development
 
@@ -33,7 +33,7 @@ The narrower right inspector has a compact Runway 18 summary and a tailwind char
 
 ## Honest forecast comparison
 
-`GET /api/verification` is an additive endpoint; `/api/forecast` schema 1.0 remains unchanged. It returns screened observations and past forecast points from `data/issued-forecasts.jsonl`. The server archives only future predictions when generating or first serving a snapshot, with actual archive time as `issued_at`. It does not backdate forecasts and does not rewrite an existing issued snapshot.
+`GET /api/verification` is an additive endpoint; `/api/forecast` schemas 1.0 and 1.1 retain the raw baseline fields. It returns screened observations and past forecast points from `data/issued-forecasts.jsonl`. The server archives only future predictions when generating or first serving a snapshot, with actual archive time as `issued_at`. It does not backdate forecasts and does not rewrite an existing issued snapshot.
 
 Only exact valid-time matches are scored, using a forecast issued before the measurement time. The UI uses the latest eligible issue per valid time and reports MAE in knots with the number of matched times. A 9 kt forecast and 7 kt observation has a 2 kt absolute error. Before matched history exists, the status says Awaiting forecast matches. Live observations alone do not establish model accuracy.
 
@@ -51,7 +51,7 @@ python3 -m unittest discover -s tests -v
 npm run build
 ```
 
-Checks cover direction conversion, case thresholds, missing values, source/time/quality gates, immutable issues, no future observations or hindsight forecasts, and the 9-versus-7 kt comparison. Model training and held-out operational evaluation are still pending.
+Checks cover direction conversion, case thresholds, missing values, source/time/quality gates, immutable issues, no future observations or hindsight forecasts, and the 9-versus-7 kt comparison. Wind ML training and evaluation are implemented on main; held-out operating-direction evaluation still needs independent labels. The UI displays raw baseline fields, not additive ML probabilities.
 
 ## Motion and runway colors
 
@@ -61,7 +61,7 @@ Runway 18's geometry, status dot and summary border share a presentation color f
 
 ## Dashboard departures and case directions
 
-The dashboard hero follows Philipp's Weather Operations reference with centered Dashboard / Map view navigation. Next flights defaults to the real FRA board via `/api/runway18/departures`. Antonio's departure collector and contract were copied unchanged from origin/main commit a3a3f59; the broader ML/schema 1.1 integration has not been merged into this working UI. A three-hour live snapshot was collected locally. The board is polled every minute for updated saved data; external refresh remains the collector's responsibility. Refresh the saved list with `python3 -c 'from fra_forecast.departures import refresh_departures; refresh_departures(hours=3)'`.
+The dashboard hero follows Philipp's Weather Operations reference with centered Dashboard / Map view navigation. Next flights defaults to the real FRA board via `/api/runway18/departures`. The merged backend retains Antonio's departure collector, ML and comparison features. The wind adapter accepts schema 1.1 while continuing to display baseline fields; ML outputs remain available through the API. A three-hour live snapshot was collected locally. The board is polled every minute for updated saved data; external refresh remains the collector's responsibility. Refresh the saved list with `python3 -c 'from fra_forecast.departures import refresh_departures; refresh_departures(hours=3)'`.
 
 Real flights appear under Unassigned because the source supplies neither assigned runways nor wheels-off times. Their estimated/scheduled departure times use Europe/Berlin, while the wind chart stays UTC. Source failures preserve the last received list with a connection label. Design preview is a separate explicitly synthetic two-lane example for Runway 18 and Centre 07C/25C; it never assigns a real flight by weather inference. Selecting a card shows its flight details.
 
@@ -93,4 +93,4 @@ The dashboard has a small north-up model drawn from the same OSM runway geometry
 
 Both takeoff and landing prefer headwind; limited tailwind is allowed under the brief’s distinct thresholds. The backend’s existing persistence logic remains authoritative. Current reported direction and selected forecast can differ, and are labeled separately.
 
-To preserve both collaborators’ chatbot contracts without changing Antonio’s `/api/chat`, the dashboard’s visual assistant now uses `/api/ui-chat` with `/status` and `/preview`. Its Python module/tests are `ui_chat.py` / `test_ui_chat.py`. The original backend chat remains at `/api/chat` with its own bounded tools and validation. Neither sends OpenAI requests without local backend credentials. Measurement verification and issued-forecast archiving are retained.
+To preserve both collaborators’ chatbot contracts without changing Antonio’s `/api/chat`, the dashboard’s visual assistant now uses `/api/weather-bot` with `/status` and `/preview`. Its Python module/tests are `weather_bot.py` / `test_weather_bot.py`. The original backend chat remains at `/api/chat` with its own bounded tools and validation. Neither sends OpenAI requests without local backend credentials. Measurement verification and issued-forecast archiving are retained.

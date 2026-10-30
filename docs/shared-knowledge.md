@@ -32,7 +32,7 @@ Antonio’s main through 1aaf46e (forecast comparison and east/west runway outlo
 
 ## Repository alignment
 
-The combined airport-direction UI and Antonio main history through 1aaf46e are tested on codex/design and ready for the requested GitHub push. All 109 backend tests pass with the declared optional ML dependency installed in an isolated environment; frontend wind/direction checks and production build pass. Browser checks confirm the real map arrows, dashboard airport model, reported/forecast distinction, unavailable-direction gaps, timeline and map controls, with no console warnings or errors. No merge into main is performed. Antonio’s /api/chat is preserved; the dashboard visual assistant uses /api/ui-chat with its own status and preview routes. Verification and issued-forecast archiving remain intact; OpenAI remains disconnected.
+The combined airport-direction UI and Antonio main history through 1aaf46e are tested on codex/design and ready for the requested GitHub push. All 111 backend tests pass with the declared optional ML dependency installed in an isolated environment; frontend wind/direction checks and production build pass. Browser checks confirm the real map arrows, dashboard airport model, reported/forecast distinction, unavailable-direction gaps, timeline and map controls, with no console warnings or errors. No merge into main is performed. Antonio’s /api/chat is preserved; the dashboard visual assistant uses /api/weather-bot with its own status and preview routes. Verification and issued-forecast archiving remain intact; OpenAI remains disconnected.
 
 GitHub confirmed during push that aiw26 was renamed to fra-operations-forecast. The old URL redirects to the same repository. The local remote and README now use the confirmed name; there is no separate-repository mismatch.
 
@@ -137,3 +137,7 @@ Quality reference: [DWD mean-wind measurement and quality documentation](https:/
 # Project pages
 
 Use the linked pages below for the active plan and detailed references.
+
+## Concurrent integration reconciled
+
+Antonio’s design-branch merge b5e8ab5 arrived during upload. Its `/api/weather-bot` dashboard contract and module name are retained alongside the separate `/api/chat` flight assistant. Its verification archive fix accepts additive schema 1.1 while preserving baseline components; its additional route and archive tests are retained. Airport direction visuals and enriched forecast adapter remain from this design increment.

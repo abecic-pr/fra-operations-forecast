@@ -29,7 +29,7 @@ def remember_forecast(root, snapshot, now=None):
     root = Path(root)
     now = now or datetime.now(UTC)
     generated = parse_time(snapshot["generated_at"])
-    if generated > now or snapshot.get("schema_version") != "1.0":
+    if generated > now or snapshot.get("schema_version") not in ("1.0", "1.1"):
         return
     points = []
     for row in snapshot.get("forecast", []):

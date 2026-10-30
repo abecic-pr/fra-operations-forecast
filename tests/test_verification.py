@@ -71,6 +71,17 @@ class VerificationTests(unittest.TestCase):
                 {'valid_time': '2026-10-30T12:00:00Z', 'tailwind_kt': 9}]}) + '\n')
             self.assertEqual(comparison_payload(root, NOW)['issued_forecasts'], [])
 
+    def test_additive_ml_schema_archives_baseline_and_rejects_unknown_schema(self):
+        for schema in ('1.0', '1.1', '2.0'):
+            with self.subTest(schema=schema), tempfile.TemporaryDirectory() as root:
+                snapshot = {'schema_version': schema, 'generated_at': '2026-10-30T10:00:00Z', 'forecast': [
+                    {'valid_time': '2026-10-30T12:00:00Z', 'runway_wind': {'18': {'tailwind_kt': 9}},
+                     'ml': {'runway_wind': {'18': {'tailwind_kt': 3}}}},
+                ]}
+                remember_forecast(root, snapshot, parse_time('2026-10-30T11:00:00Z'))
+                values = [row['tailwind_kt'] for row in comparison_payload(root, NOW)['issued_forecasts']]
+                self.assertEqual(values, [] if schema == '2.0' else [9])
+
 
 if __name__ == '__main__':
     unittest.main()
