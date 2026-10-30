@@ -1,24 +1,36 @@
 """Local JSON API for the teammate's UI; no assets or directory listing."""
 
+from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 from pathlib import Path
 import threading
+import time
 from urllib.parse import urlsplit
 
-from . import chat
+from . import chat, weather_bot
 from .pipeline import refresh
 from .verification import comparison_payload, remember_forecast
+from .wind_ml import MODEL_VERSION
 
 
 def make_handler(data_dir):
     data_dir = Path(data_dir)
     refresh_lock = threading.Lock()
     chat_lock = threading.Lock()
+    weather_bot_lock = threading.Lock()
+    chat_slots = threading.BoundedSemaphore(2)
+    chat_requests = deque()
     routes = {
         "/api/forecast": (data_dir / "forecast.json", "application/json"),
         "/api/sources": (data_dir / "sources.json", "application/json"),
+        "/api/model-metrics": (data_dir / "models" / MODEL_VERSION / "metrics.json", "application/json"),
         "/api/runway18/departures": (data_dir / "runway18-departures.json", "application/json"),
+        "/api/operations-metrics": (data_dir / "operations-evaluation.json", "application/json"),
+        "/api/discovery": (data_dir / "comparison" / "discovery.json", "application/json"),
+        "/api/model-comparison": (data_dir / "comparison" / "evaluation.json", "application/json"),
+        "/api/forecast-comparison": (data_dir / "comparison" / "forecast.json", "application/json"),
+        "/api/forecast-agent": (data_dir / "comparison" / "agent.json", "application/json"),
     }
 
     class Handler(BaseHTTPRequestHandler):
@@ -38,11 +50,11 @@ def make_handler(data_dir):
             self.send_body(status, json.dumps(value, allow_nan=False).encode())
 
         def do_GET(self):
-            if urlsplit(self.path).path == '/api/chat/status':
-                return self.send_json(200, chat.status())
-            if urlsplit(self.path).path == '/api/chat/preview':
+            if urlsplit(self.path).path == '/api/weather-bot/status':
+                return self.send_json(200, weather_bot.status())
+            if urlsplit(self.path).path == '/api/weather-bot/preview':
                 try:
-                    return self.send_json(200, chat.preview(data_dir))
+                    return self.send_json(200, weather_bot.preview(data_dir))
                 except (OSError, ValueError, KeyError):
                     return self.send_json(503, {'error': 'Saved weather data is unavailable.'})
             if urlsplit(self.path).path == "/api/verification":
@@ -57,11 +69,11 @@ def make_handler(data_dir):
             try:
                 body = path.read_bytes()
             except FileNotFoundError:
-                return self.send_json(404, {"error": "No saved data yet. Run python3 -m fra_forecast refresh --live-only."})
+                return self.send_json(404, {"error": "Requested data is unavailable. Run refresh for forecasts or train-ml for model metrics."})
             self.send_body(200, body, content_type)
 
         def do_POST(self):
-            if urlsplit(self.path).path == '/api/chat':
+            if urlsplit(self.path).path == '/api/weather-bot':
                 origin = self.headers.get('Origin')
                 expected = 'http://' + self.headers.get('Host', '')
                 if self.headers.get('X-FRA-Chat') != '1' or (origin and origin != expected):
@@ -73,16 +85,18 @@ def make_handler(data_dir):
                     body = json.loads(self.rfile.read(length))
                 except (ValueError, UnicodeError):
                     return self.send_json(400, {'error': 'Invalid question.'})
-                if not chat_lock.acquire(blocking=False):
+                if not weather_bot_lock.acquire(blocking=False):
                     return self.send_json(429, {'error': 'The bot is answering another question. Please try shortly.'})
                 try:
-                    return self.send_json(200, chat.ask(data_dir, body))
-                except chat.ChatError as exc:
+                    return self.send_json(200, weather_bot.ask(data_dir, body))
+                except weather_bot.ChatError as exc:
                     return self.send_json(exc.status, {'error': str(exc)})
                 except (OSError, ValueError, KeyError):
                     return self.send_json(503, {'error': 'Project data is unavailable. Refresh the saved data and retry.'})
                 finally:
-                    chat_lock.release()
+                    weather_bot_lock.release()
+            if urlsplit(self.path).path == "/api/chat":
+                return self.chat_reply()
             if urlsplit(self.path).path != "/api/refresh":
                 return self.send_json(404, {"error": "Not found"})
             # Require an explicit client header and reject cross-origin browser calls.
@@ -99,6 +113,39 @@ def make_handler(data_dir):
                 self.send_json(502, {"error": f"Data refresh failed: {exc}"})
             finally:
                 refresh_lock.release()
+
+        def chat_reply(self):
+            origin = self.headers.get("Origin")
+            expected = "http://" + self.headers.get("Host", "")
+            if self.headers.get("X-FRA-Chat") != "1" or (origin and origin != expected):
+                return self.send_json(403, {"error": "forbidden", "answer": "Chat requires X-FRA-Chat: 1 and a same-origin request."})
+            if self.headers.get_content_type() != "application/json" or self.headers.get("Transfer-Encoding"):
+                return self.send_json(400, {"error": "invalid_request", "answer": "Send application/json with Content-Length."})
+            try:
+                size = int(self.headers.get("Content-Length", "0"))
+            except ValueError:
+                size = 0
+            if not 0 < size <= chat.MAX_BODY:
+                return self.send_json(413 if size > chat.MAX_BODY else 400,
+                                      {"error": "invalid_body_size", "answer": "Chat body must contain 1–16384 bytes."})
+            try:
+                self.connection.settimeout(10)
+                body = json.loads(self.rfile.read(size))
+                chat.validate_request(body)
+            except (OSError, ValueError, UnicodeError):
+                return self.send_json(400, {"error": "invalid_request", "answer": "Invalid chat message, history or JSON body."})
+            with chat_lock:
+                now = time.monotonic()
+                while chat_requests and chat_requests[0] <= now - 60:
+                    chat_requests.popleft()
+                if len(chat_requests) >= 12 or not chat_slots.acquire(blocking=False):
+                    return self.send_json(429, {"error": "rate_limited", "answer": "Chat is busy. Try again shortly."})
+                chat_requests.append(now)
+            try:
+                status, result = chat.run(data_dir, body)
+                self.send_json(status, result)
+            finally:
+                chat_slots.release()
 
     return Handler
 

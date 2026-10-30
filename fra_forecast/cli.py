@@ -16,10 +16,99 @@ def main(argv=None):
     fetch.add_argument("--archive-days", type=int, default=7)
     fetch.add_argument("--labels", type=Path, help="Independent operations-label CSV")
     fetch.add_argument("--live-only", action="store_true", help="Skip historical METAR and forecast archives")
+    fetch.add_argument("--no-ml", action="store_true", help="Explicitly use the raw baseline without loading a wind model")
+    fetch.add_argument("--no-departures", action="store_true", help="Skip the public flight-board refresh")
+    departures = commands.add_parser("refresh-departures", help="Match upcoming FRA flights to RWY18 weather")
+    departures.add_argument("--data-dir", type=Path, default=Path("data"))
+    departures.add_argument("--hours", type=int, default=48)
+    prepare = commands.add_parser("prepare-ml", help="Backfill ICON-EU runs and DWD targets for wind training")
+    prepare.add_argument("--data-dir", type=Path, default=Path("data"))
+    prepare.add_argument("--days", type=int, default=180)
+    prepare.add_argument("--max-minutes", type=float, default=50)
+    train = commands.add_parser("train-ml", help="Train and chronologically evaluate wind corrections")
+    train.add_argument("--data-dir", type=Path, default=Path("data"))
+    operations = commands.add_parser("train-operations", help="Train OD only from independently sourced interval labels")
+    operations.add_argument("--data-dir", type=Path, default=Path("data"))
+    operations.add_argument("--labels", type=Path, required=True)
+    export = commands.add_parser("export-submission", help="Replay explicit jury issue times into CSV and JSON")
+    export.add_argument("--data-dir", type=Path, default=Path("data"))
+    export.add_argument("--issues", type=Path, required=True)
+    export.add_argument("--output-dir", type=Path, required=True)
+    export.add_argument("--labels", type=Path)
+    compare = commands.add_parser("compare-models", help="Train fixed wind candidates and select on validation dates")
+    compare.add_argument("--data-dir", type=Path, default=Path("data"))
+    discovery = commands.add_parser("discover-data", help="Report source coverage and development-period error patterns")
+    discovery.add_argument("--data-dir", type=Path, default=Path("data"))
+    discovery.add_argument("--probe-gfs", action="store_true", help="Probe one recent and three archived GFS runs")
+    comparison = commands.add_parser("refresh-comparison", help="Run frozen candidates on the saved forecast reference")
+    comparison.add_argument("--data-dir", type=Path, default=Path("data"))
+    comparison.add_argument("--no-gfs", action="store_true", help="Skip the optional unranked GFS source")
+    agent = commands.add_parser("forecast-agent", help="Explain the saved policy with bounded optional AI tools")
+    agent.add_argument("--data-dir", type=Path, default=Path("data"))
+    agent.add_argument("--question", default="Where do forecasts disagree, and why was this forecast selected?")
     api = commands.add_parser("serve", help="Serve local forecast JSON endpoints")
     api.add_argument("--data-dir", type=Path, default=Path("data"))
     api.add_argument("--port", type=int, default=8000)
     args = parser.parse_args(argv)
+    if args.command in ("train-operations", "export-submission", "compare-models", "discover-data", "refresh-comparison", "forecast-agent"):
+        try:
+            if args.command == "train-operations":
+                from .operations_ml import train
+                report = train(args.data_dir, args.labels)
+                print(f"OD training: {report['status']}; {report.get('reason') or 'see operations-evaluation.json'}")
+                return 0 if report["status"] == "trained" else 1
+            if args.command == "export-submission":
+                from .submission import export
+                report = export(args.data_dir, args.issues, args.output_dir, args.labels)
+                print(f"Exported {report['rows']} rows to {args.output_dir}: {report['status']}")
+                return 0 if report["status"].startswith("complete") else 1
+            if args.command == "forecast-agent":
+                from .agent import run
+                report = run(args.data_dir, args.question)
+                print(f"Agent: {report['status']}. {report['explanation']}")
+                return 0 if report["status"] == "completed" else 1
+            from . import comparison
+            if args.command == "compare-models":
+                comparison.train(args.data_dir)
+            elif args.command == "discover-data":
+                report = comparison.discover(args.data_dir, args.probe_gfs)
+                print(f"Discovery: {report['rows']} rows; saved {args.data_dir/'comparison'/'discovery.json'}")
+            else:
+                report = comparison.refresh(args.data_dir, include_gfs=not args.no_gfs)
+                print(f"Comparison: {report['status']}; selected {report['policy']['winner']}")
+                return 0 if report["status"] == "available" else 1
+            return 0
+        except ImportError as exc:
+            print(f"Optional ML dependencies unavailable: {exc}. Install with: python -m pip install -e '.[ml]'", file=sys.stderr)
+            return 1
+        except (OSError, ValueError, KeyError, TypeError) as exc:
+            print(f"{args.command} failed: {exc}", file=sys.stderr)
+            return 1
+    if args.command == "refresh-departures":
+        from .departures import refresh_departures
+        try:
+            report=refresh_departures(args.data_dir,args.hours)
+            return 0 if report["source"]["status"] != "unavailable" else 1
+        except (OSError,ValueError,KeyError) as exc:
+            print(f"Departure refresh failed: {exc}",file=sys.stderr)
+            return 1
+    if args.command in ("prepare-ml","train-ml"):
+        try:
+            if args.command == "prepare-ml":
+                from .ml_data import prepare as prepare_data
+                if args.max_minutes <= 0:
+                    parser.error("--max-minutes must be positive")
+                report = prepare_data(args.data_dir,args.days,args.max_minutes)
+                return 0 if report["rows"] else 1
+            from .wind_ml import train as train_model
+            train_model(args.data_dir)
+            return 0
+        except ImportError as exc:
+            print(f"ML dependencies unavailable: {exc}. Install with: python3 -m pip install -e '.[ml]'",file=sys.stderr)
+            return 1
+        except (OSError,ValueError,KeyError) as exc:
+            print(f"ML command failed: {exc}",file=sys.stderr)
+            return 1
     if args.command == "serve":
         from .server import serve
         try:
@@ -34,7 +123,8 @@ def main(argv=None):
         parser.error("--archive-days must be between 0 and --history-days")
     try:
         snapshot = refresh(args.data_dir, args.history_days, args.archive_days,
-                           args.labels, args.live_only)
+                           args.labels, args.live_only,use_ml=not args.no_ml,
+                           include_departures=not args.no_departures)
     except (OSError, ValueError) as exc:
         print(f"Refresh failed: {exc}", file=sys.stderr)
         return 1

@@ -1,3 +1,7 @@
+# Integration update — 30 October 2026
+
+The merge with main retains Philipp’s dashboard and verification alongside Antonio’s ML, comparison, flight assistant and submission tools. The wind adapter and forecast archive accept schemas 1.0 and 1.1 while retaining baseline field semantics. The dashboard bot now uses `/api/weather-bot` (plus `/status` and `/preview`); `/api/chat` preserves the existing flight assistant contract. The dated snapshot below predates this integration and is historical, including its pending-merge and endpoint statements. Challenge requirements remain those in `docs/challenge/README.md`, including airport-wide 07/25 forecasts.
+
 # Shared project knowledge snapshot
 
 Snapshot read 30 October 2026, after implementation commit 2ee9c04 was pushed. Canonical live knowledge base: https://chatgpt.com/space/page_fe8b5e3a0f788191867be7f4e42de933

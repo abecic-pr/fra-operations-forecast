@@ -1,10 +1,12 @@
 # FRA Operations Forecast
 
+The [FraAlliance challenge brief](docs/challenge/README.md), with the unchanged original PDF alongside it, is this project's source of truth. Every project chat must read it under [AGENTS.md](AGENTS.md).
+
 Forecasting runway operating direction and Runway 18 weather suitability at Frankfurt Airport.
 
 FRA Operations Forecast is a research prototype for the **FraAlliance challenge at AI Week Frankfurt 2026**. The project aims to turn weather observations and forecasts into a probabilistic outlook for airport operations over the next 48 hours.
 
-**Status:** Public weather ingestion, a versioned challenge-rule baseline, 48-hour JSON output, a historical dataset export, and a local JSON API. The Runway 18 frontend provides Dashboard and Map modes with live airport wind, a measured-versus-forecast chart, timeline playback and an animated wind layer; the temporary data-preview UI has been removed. Machine-learning training remains to be implemented. Baseline probabilities are `null`; independent historical operating labels are still needed for model evaluation.
+**Status:** Working weather ingestion and 48-hour forecast, validation-selected model comparison, GFS source comparison, discovery reports, optional AI coordinator, replay/export, and local JSON API. The one-page [model card](docs/model-card.md) records measured results and incomplete challenge deliverables. Learned operating direction still needs independent historical labels; the training/inference/evaluation code is implemented and those live probabilities remain `null`. Philipp’s dashboard and map display baseline wind, provisional measurements and real departures.
 
 ## Run the frontend locally
 
@@ -37,7 +39,7 @@ npm run build
 ```
 
 See [frontend wind integration](docs/frontend-wind.md) for the provider boundary,
-schema 1.0 adapter, controls, demo limitations and later API integration. See
+schema 1.0/1.1 adapter, controls, demo limitations and later API integration. See
 [map data sources](public/data/README.md) for OSM and satellite attribution.
 Use separate branches and test locally before pushing; the shared project
 knowledge-base rule is in [AGENTS.md](AGENTS.md).
@@ -88,7 +90,7 @@ git clone https://github.com/abecic-pr/fra-operations-forecast.git
 cd fra-operations-forecast
 ```
 
-Python 3.11 or newer is required. The current backend uses only the standard library.
+Python 3.11 or newer is required. The baseline backend uses the standard library; model comparison and training use the existing optional ML dependencies.
 
 ```bash
 # Current observations and 48-hour forecast; requires internet access.
@@ -113,6 +115,56 @@ proxy `/api/*` to this server; see the integration notes in the data contract.
 
 Brand assets and illustrative design references are in [branding/](branding/README.md).
 
+## Wind ML quickstart
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -e '.[ml]'
+
+# Cached public backfill: 180 completed days, four ICON-EU runs per day.
+python -m fra_forecast prepare-ml --days 180
+
+# Fit corrections, select on validation dates, calibrate on separate dates,
+# and evaluate once on the chronological final test set.
+python -m fra_forecast train-ml
+
+# Load the local model and append ML outputs to the existing raw forecast.
+python -m fra_forecast refresh --live-only
+python -m fra_forecast serve
+```
+
+Read `forecast[].ml` for corrected wind and RWY18 weather probability. The existing
+fields continue to contain the raw weather/rule baseline. See
+[the ML guide](docs/wind-ml.md) for targets, time alignment, metrics, and fallbacks.
+The first measured outcome is recorded in [the evaluation summary](docs/ml-evaluation.md).
+Model metrics are available at `/api/model-metrics`. Training data, cached
+responses, and model artifacts remain in the ignored `data/` directory.
+
+Historical publication times are estimated, and DWD references may contain later
+quality corrections. Reported backtests are conditional on those assumptions.
+Probability outputs are provisional estimates; their reliability and rare-event
+coverage must be read alongside the score. No improvement is assumed before evaluation.
+
+## Runway 18 departure assessments
+
+Normal refresh now also reads Frankfurt Airport's public departure-board feed
+and matches each upcoming flight to RWY18 weather. No flight API key is needed.
+
+```bash
+# Refresh just the flight list using the saved weather snapshot.
+python -m fra_forecast refresh-departures --hours 48
+
+# Weather-only refresh if flight data is not needed.
+python -m fra_forecast refresh --live-only --no-departures
+```
+
+Read `/api/runway18/departures` or `data/runway18-departures.json`.
+The board provides schedules and departure estimates, but no estimated takeoff
+times or assigned runways. Flights are assessed **for** RWY18 weather; they are
+not presented as confirmed RWY18 departures. Individual runway-use probability
+stays `null`. See [the departure data contract](docs/runway18-departures.md).
+
 Supply independently verified labels with `--labels path/to/operations.csv`,
 using the header in [examples/operations-labels.csv](examples/operations-labels.csv).
 The template intentionally contains no invented records. Historical forecast
@@ -121,6 +173,14 @@ dataset is not yet evidence of leakage-free model accuracy.
 
 The six-hour hackathon constraint and division of work are recorded in
 [AGENTS.md](AGENTS.md). The teammate owns UI; backend work prioritizes runnable increments.
+
+## Airport and flight chatbot
+
+`POST /api/chat` answers questions from saved airport forecasts and public flight
+weather assessments, using an OpenAI key on the backend. It supports flight-number
+and codeshare lookup, follow-up context, source evidence and freshness warnings.
+Set `OPENAI_API_KEY` and `FRA_CHAT_MODEL` before starting the server. The teammate
+owns the chat panel; see [setup and the JSON contract](docs/chatbot.md).
 
 ## Project context
 
@@ -134,4 +194,31 @@ The dashboard includes a project assistant with data lookups, forecast charts an
 
 To enable AI answers, add `OPENAI_API_KEY` to the ignored root `.env` file (see `.env.example`). The default backend model is `gpt-5-mini`; set `OPENAI_MODEL` to change it. Keep the key on the Python backend, never in VITE_ variables. The status refreshes automatically; no key is committed. A real OpenAI completion still needs account/model access and has not been tested without a key.
 
-See [AI Weather Bot setup and data contract](docs/ai-weather-bot.md) for source scope, limits and the `/api/chat` endpoints. The model reasons internally and returns a short explanation with sources. Weather suitability and official runway closure remain distinct.
+See [AI Weather Bot setup and data contract](docs/ai-weather-bot.md) for source scope, limits and the `/api/weather-bot` endpoints. The existing `/api/chat` flight assistant remains separate. The model reasons internally and returns a short explanation with sources. Weather suitability and official runway closure remain distinct.
+
+## Comparison demo and submission handoff
+
+The [eastbound/westbound forecast](docs/operating-direction.md) now explicitly maps
+07/25 predictions to landing direction, approach side, and Centre departure runway.
+Runway 18 stays southbound in both directions. Read `direction_forecast` in either
+forecast endpoint; each point states whether it is learned or weather-rule based.
+
+The [comparison runbook](docs/model-comparison.md) covers discovery, five scored
+candidates, live GFS comparison, the optional AI coordinator, independent OD
+training, replay/export, and the local frozen-artifact bundle. The selected
+Ridge correction reduced validation vector RMSE from 5.517 to 4.377 kt.
+RWY18 probability improvement and actual operating-direction skill are not established.
+
+```bash
+source .venv/bin/activate
+python -m fra_forecast compare-models
+python -m fra_forecast discover-data --probe-gfs
+python -m fra_forecast refresh --live-only --no-departures
+python -m fra_forecast refresh-comparison
+python -m fra_forecast serve
+```
+
+The one-page submission card is [available as PDF](output/pdf/model-card.pdf)
+with [editable Markdown](docs/model-card.md). Jury dates and issue format are
+absent from the brief: populate [the issue template](examples/jury-issues.csv)
+only with actual organizer inputs before running `export-submission`.

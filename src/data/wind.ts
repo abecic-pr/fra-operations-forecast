@@ -101,12 +101,12 @@ export function sampleField(dataset: WindDataset, frame: WindFrame, lat: number,
   return { east, north, speed: Math.hypot(east, north) };
 }
 
-// Antonio's schema 1.0; the live adapter is the active provider.
+// Antonio's schemas 1.0 and additive 1.1; the live adapter is the active provider.
 // Missing data stays null. A single airport wind is never presented as a real spatial grid.
 export function adaptBackendSnapshot(input: unknown): WindDataset {
   if (!input || typeof input !== 'object') throw new Error('Expected a forecast snapshot');
   const data = input as Record<string, unknown>;
-  if (data.schema_version !== '1.0' || !Array.isArray(data.forecast) || !Number.isFinite(Date.parse(String(data.generated_at)))) throw new Error('Unsupported or invalid forecast schema');
+  if ((data.schema_version !== '1.0' && data.schema_version !== '1.1') || !Array.isArray(data.forecast) || !Number.isFinite(Date.parse(String(data.generated_at)))) throw new Error('Unsupported or invalid forecast schema');
   const numeric = (value: unknown) => typeof value === 'number' && Number.isFinite(value) ? value : null;
   const frames = data.forecast.map((value: unknown): WindFrame => {
     if (!value || typeof value !== 'object') throw new Error('Invalid forecast point');
