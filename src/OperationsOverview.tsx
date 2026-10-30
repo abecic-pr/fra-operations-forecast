@@ -1,3 +1,4 @@
+import DirectionForecast,{type DirectionControl} from './DirectionForecast';
 import RunwayPlan,{type PlanningControl} from './RunwayPlan';
 import Icon from './Icon';
 import AirportDirection from './AirportDirection';
@@ -26,7 +27,7 @@ function MetricChart({view,metric}:{view:WindView;metric:'landing'|'crosswind'})
     <rect x={l} y={t} width={w-l-r} height={h-t-b} fill="transparent" style={{cursor:'crosshair'}} onClick={event=>{const rect=event.currentTarget.ownerSVGElement!.getBoundingClientRect(),px=(event.clientX-rect.left)/rect.width*w;view.onPlaying(false);onHour(Math.min(horizon,Math.max(0,Math.round((px-l)/(w-l-r)*horizon*4)/4)));}}/>
   </svg><div className="metric-chart-footer"><span>Hourly forecast · kt · UTC</span><span>{points.filter(p=>p.value!==null).length}/{points.length} values</span></div></section>;
 }
-export default function OperationsOverview({view,onOpenMap,planning}:{view:WindView;onOpenMap:()=>void;planning:PlanningControl}) {
+export default function OperationsOverview({view,onOpenMap,planning,directionControl}:{view:WindView;onOpenMap:()=>void;planning:PlanningControl;directionControl:DirectionControl}) {
   const {dataset,now=Date.now(),connectionError=false,hour}=view,selected=frameAt(dataset,hour);
   const current=dataset.currentObservation??(dataset.mode==='demo'?dataset.frames[0]:undefined),outlook=operationalOutlook(dataset,now);
   const currentFlag=current?departureExceedance(current):null;
@@ -42,6 +43,7 @@ export default function OperationsOverview({view,onOpenMap,planning}:{view:WindV
   return <>
     <RunwayPlan view={view} planning={planning}/>
     <div className="priority-weather"><WindForecast {...view}/><AirportPreview dataset={dataset} frame={selected} connectionError={connectionError} onOpenMap={onOpenMap}/></div>
+    <DirectionForecast view={view} control={directionControl}/>
     <details className="weather-details"><summary>Weather details & airport context</summary>
     <section className="operational-kpis" aria-label="Main Runway 18 operational wind indicators">
       <article className="operational-card" data-tone={current?.tailwindKt===null||!current?'unknown':current.tailwindKt>=15?'red':current.tailwindKt>=11?'yellow':'normal'}><div><h2>Tailwind <span>Runway 18</span></h2><Icon name="wind" size={17}/></div><p className="operational-value">{number(current?.tailwindKt)}<small>kt</small></p><p className="operational-context">Departure limit <strong>15 kt</strong></p><div className="limit-meter" role="img" aria-label={`Tailwind ${number(current?.tailwindKt)} knots; departure limit 15 knots`}><i style={{width:`${Math.min(100,(current?.tailwindKt??0)/15*100)}%`}}/></div><p className="operational-note">{remaining===null?'No current observation':remaining>0?`${number(remaining)} kt below the limit`:'Departure tailwind limit reached'}</p></article>
