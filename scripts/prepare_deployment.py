@@ -1,4 +1,4 @@
-"""Copy only the public snapshots and wind artifacts needed by the hosted demo."""
+"""Copy only the public snapshots and model artifacts needed by the hosted demo."""
 import argparse
 import json
 from pathlib import Path
@@ -12,6 +12,8 @@ FILES = (
     "models/icon-eu-wind-v1/metrics.json", "models/wind-comparison-v1/manifest.json",
     "models/wind-comparison-v1/model.joblib", "models/wind-comparison-v1/metrics.json",
     "models/wind-comparison-v1/policy.json",
+    "models/operations-v3/manifest.json", "models/operations-v3/model.joblib",
+    "models/operations-v3/metrics.json", "operations-evaluation.json",
 )
 
 

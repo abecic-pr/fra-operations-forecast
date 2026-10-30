@@ -124,7 +124,7 @@ def refresh(root, history_days=14, archive_days=7, labels_path=None, live_only=F
     from .ml_live import enrich
     enrich(snapshot,root,client,enabled=use_ml)
     from .operations_ml import enrich as enrich_operations
-    enrich_operations(snapshot, root, enabled=use_ml)
+    enrich_operations(snapshot, root, enabled=use_ml, observations=dwd)
     from .direction import enrich as enrich_direction
     enrich_direction(snapshot)
     snapshot["runway18_departures_url"] = "/api/runway18/departures"

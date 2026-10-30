@@ -22,7 +22,8 @@ def load_labels(path):
             if not any(row.values()):
                 continue
             start, end, available = (parse_time(row[k]) for k in ("valid_from", "valid_to", "available_at"))
-            if start >= end or not row["source"].strip():
+            kind = row.get("label_kind") or "interval"
+            if kind not in ("interval", "point") or (start != end if kind == "point" else start >= end) or not row["source"].strip():
                 raise ValueError(f"Invalid operations interval/source on line {line}")
             if row["operating_direction"] not in ("07", "25", "", "unknown"):
                 raise ValueError(f"Invalid operating direction on line {line}")
@@ -31,14 +32,17 @@ def load_labels(path):
             rows.append({**row, "start": start, "end": end, "available": available})
     rows.sort(key=lambda row: row["start"])
     for previous, current in zip(rows, rows[1:]):
-        if current["start"] < previous["end"]:
+        if current["start"] < previous["end"] or current["start"] == previous["start"]:
             raise ValueError("Overlapping operations intervals; resolve conflicting labels first")
     return rows
 
 
 def label_at(labels, at, known_by=None):
-    for row in labels:
-        if row["start"] <= at < row["end"] and (known_by is None or row["available"] <= known_by):
+    index = bisect_right(labels, at, key=lambda row: row["start"])-1
+    if index >= 0:
+        row = labels[index]
+        matches = at == row["start"] if row.get("label_kind") == "point" else row["start"] <= at < row["end"]
+        if matches and (known_by is None or row["available"] <= known_by):
             return row
     return None
 

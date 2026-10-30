@@ -1,0 +1,72 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "2026-10-30T14:01:04Z",
+  "issues": [
+    {
+      "forecast_reference_time": "2026-10-30T14:00:00Z",
+      "wind_hours": 48,
+      "rwy18_probability_hours": 48,
+      "od_probability_hours": 48,
+      "source_error": null,
+      "status": "complete_with_availability_assumptions",
+      "reasons": [],
+      "next_change": {
+        "status": "unknown",
+        "earliest": null,
+        "latest": null,
+        "probability": null,
+        "method": "predicted_hourly_class_change"
+      },
+      "artifacts": {
+        "wind": {
+          "model_version": "wind-comparison-v1",
+          "experiment_id": "ed131c7b15d7291b15a5",
+          "data_cutoff": "2026-09-21T00:00:00Z",
+          "trained_at": "2026-10-30T12:43:22Z",
+          "dataset_sha256": "66fe17ae25c62ea2fda4031a678e4bfe379f27a268ea98dc4dfd56098aa2de1b"
+        },
+        "operations": {
+          "model_version": "operations-v2",
+          "experiment_id": "6aa45676f6bc52ff0d52",
+          "data_cutoff": "2026-10-30T13:39:14Z",
+          "trained_at": "2026-10-30T13:47:13Z",
+          "labels_sha256": "2a8645e6c594156d05efebe1d7861e61f0c1709b9a0c43497bd554cdae5cbc7f",
+          "dataset_sha256": "66fe17ae25c62ea2fda4031a678e4bfe379f27a268ea98dc4dfd56098aa2de1b"
+        }
+      },
+      "replay_kind": "retrospective_reconstruction_with_assumed_publication_delay"
+    }
+  ],
+  "status": "complete_with_availability_assumptions",
+  "rows": 48,
+  "jury_schema_confirmed": false,
+  "ruleset": {
+    "version": "fraalliance-2026-v1",
+    "landing_tailwind_limit_kt": 10.0,
+    "departure_tailwind_limit_kt": 15.0,
+    "crosswind_limit_kt": 40.0,
+    "tailwind_persistence_minutes": 30,
+    "runway_headings_true": {
+      "07": 70.0,
+      "25": 250.0,
+      "18": 180.0
+    }
+  },
+  "source_checks": [
+    {
+      "source": "forecast_icon_eu",
+      "url": "https://single-runs-api.open-meteo.com/v1/forecast?latitude=50.0259&longitude=8.5213&hourly=wind_speed_10m%2Cwind_direction_10m%2Cwind_gusts_10m&models=icon_eu&wind_speed_unit=kn&timezone=UTC&run=2026-10-30T06%3A00&forecast_days=4",
+      "fetched_at": "2026-10-30T11:50:34Z",
+      "http_status": 200,
+      "sha256": "29c3061b45d44878af3862bc397f26c5f92cad3ab33a1d766757ce8c04b987bb",
+      "bytes": 3249,
+      "status": "ok",
+      "cached": true
+    }
+  ],
+  "limitations": [
+    "Internal export schema; organizer dates/schema are not given in the brief.",
+    "Forecast publication delay and historical observation revisions are unverified.",
+    "Null OD is an incomplete deliverable, not a fabricated rule-trained model."
+  ]
+}

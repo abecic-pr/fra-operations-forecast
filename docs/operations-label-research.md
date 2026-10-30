@@ -1,3 +1,24 @@
+**History recovered and model trained, 30 October 2026 (latest status)**
+
+The user explicitly prioritized obtaining 07/25 history and authorized ML improvements in this chat. The new `fetch-operations` command recovered **182 days from 30 April through 29 October 2026**, with **8,736 half-hour display categories**: 3,148 east / 5,588 west. The 25 October DST transition day is excluded because its 48 displayed slots cannot represent the repeated local hour unambiguously. Raw HTML and URL/retrieval/hash metadata remain local under `data/od-research/raw/dfld_history/`; `data/operations/dfld-half-hour.csv` preserves every category, including its original title and display position.
+
+This is source-derived observed-direction history, with **provisional time resolution**, not an official exact-switch log. DFLD's [help, section 4.4](https://www.dfld.de/Mess/Language/MessHelpG.html) explicitly identifies the post-March-2004 lower bar as actual direction based on Fraport data. The first bar is weather and is never used to manufacture OD labels. CSS gives 48 equal half-hour slots; the two-hour view independently matches the same four categories. DFLD's weather slots match archived EDDF METAR at :20/:50 local time on 20 July, 20 October, and after DST on 27 October. This corroborates Europe/Berlin display alignment, **not the exact sampling instant of the separate OD bar**. Both source uncertainty and the excluded DST day remain in the history report.
+
+For training, only an hourly point whose preceding, current, and following displayed half-hour categories agree is retained. This produces **4,259 point-label proxies** (1,520 east / 2,739 west). `label_kind=point` and equal `valid_from`/`valid_to` mean exact lookup only; no state is interpolated across unobserved intervals. The selection deliberately excludes ambiguous transitions, so quality scores describe this easier stable-state subset. Exact switch-time scoring is unavailable. Historical publication is unknown: `available_at` is the real retrieval time, making these retrospective targets unavailable as historical initial-OD inputs. No runway-18 availability is inferred.
+
+The classifier and evaluation are now implemented and trained; see [the measured improvement report](ml-improvement.md). The downloaded categories and models stay local. Existing DFLD terms support private/noncommercial copies; broader redistribution permission is unverified. The local delivery ZIP created earlier does not include this new extract/model.
+
+Reproduce with:
+
+```bash
+python -m fra_forecast fetch-operations
+python -m fra_forecast train-operations --labels data/operations/labels.csv
+```
+
+The remaining earlier research is retained as historical context; its statements that no history had been recovered are superseded by this section.
+
+---
+
 **Historical operating-direction labels: bounded source check**
 
 **Implementation follow-up, 30 October 2026:** Direct cached HTTP retrieval now
