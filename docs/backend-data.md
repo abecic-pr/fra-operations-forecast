@@ -1,8 +1,8 @@
 # Backend data contract, version 1.0
 
 Run `python3 -m fra_forecast refresh --live-only` from the repository root.
-No third-party Python packages or API keys are needed. Refreshes are manual in
-this increment. The command exits nonzero if no forecast hours are available;
+No third-party Python packages or API keys are needed. Refreshes are manual via
+the command or API. The command exits nonzero if no forecast hours are available;
 partial source failures are recorded in the JSON and may still produce usable output.
 
 ## Frontend file: `data/forecast.json`
@@ -61,4 +61,43 @@ runway use and official operational status separate from weather suitability.
 Historical publication time is estimated as model-run time plus four hours;
 DWD historical observations use an estimated one-hour delay. These are unverified
 assumptions. Resolve them before claiming a leakage-free backtest. Model training,
-calibration, held-out operational evaluation and an HTTP API are pending.
+calibration and held-out operational evaluation are pending.
+
+## Local JSON API and frontend integration
+
+Start `python3 -m fra_forecast serve`. The server exposes these routes at
+`http://127.0.0.1:8000`, with no HTML, static UI assets, or directory listing:
+
+| Route | Result |
+| --- | --- |
+| `GET /api/forecast` | The existing version 1.0 snapshot, without schema changes |
+| `GET /api/sources` | The latest source diagnostics |
+| `POST /api/refresh` | Fetch current data and return the new snapshot |
+
+The refresh action requires the `X-FRA-Refresh: 1` header and rejects a different
+browser origin. Only one refresh runs at a time. There is no automatic polling
+of external providers. JSON schema 1.0 and baseline calculations are unchanged.
+
+For frontend development, proxy `/api/*` through the frontend's own server to
+this loopback API. Preserve the browser-facing `Host` header on proxied requests
+so the refresh origin check can match it. CORS is not enabled. A frontend server
+can also read the saved JSON directly.
+
+```javascript
+const forecast = await fetch('/api/forecast').then(response => response.json());
+// Explicit refresh; callers should handle non-2xx errors and source_errors.
+const updated = await fetch('/api/refresh', {
+  method: 'POST',
+  headers: { 'X-FRA-Refresh': '1' },
+}).then(response => response.json());
+```
+
+Missing files return 404, a concurrent refresh returns 409, and a rejected
+origin or missing refresh header returns 403. Individual provider failures may
+still return a partial snapshot with HTTP 200: inspect `data_quality.source_errors`
+and `forecast_hours_available`. A refresh failure outside that fallback returns
+502. Responses are not cached.
+
+The temporary inspection UI has been removed. The teammate owns the replacement
+UI. Preserve the distinctions between observations, forecasts, predictions,
+missing gusts, weather suitability, observed use, and official runway status.

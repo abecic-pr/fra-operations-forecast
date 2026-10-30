@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-labelledby="horizon-title">
+  <title id="horizon-title">FRA Horizon concept, refined</title>
+  <path fill="#17191D" d="M32 136A96 96 0 0 1 224 136H188A60 60 0 0 0 68 136Z"/>
+  <rect x="32" y="160" width="192" height="36" rx="18" fill="#17191D"/>
+</svg>

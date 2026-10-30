@@ -1,0 +1,136 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 820" width="1200" height="820"><rect width="1200" height="820" fill="#F5F5F7"/><text x="36" y="42" font-family="Helvetica Neue, Arial, sans-serif" font-size="25" fill="#17191D">FRA / Concept validation</text><text x="36" y="86" font-family="Helvetica Neue, Arial, sans-serif" font-size="20" fill="#17191D">Flightpath</text><rect x="36" y="108" width="350" height="164" rx="16" fill="#FFFFFF"/><g transform="translate(60 148) scale(0.25)"><g transform="">
+  <path fill="#17191D" d="M48 212V84C48 48 72 28 108 28H224L188 64H112C94 64 84 72 84 90V108H196L160 144H84V212Q84 216 80 216H52Q48 216 48 212Z"/>
+
+</g></g><text x="60" y="245" font-family="Helvetica Neue, Arial, sans-serif" font-size="13" fill="#17191D">64 px</text><g transform="translate(142 180) scale(0.125)"><g transform="">
+  <path fill="#17191D" d="M48 212V84C48 48 72 28 108 28H224L188 64H112C94 64 84 72 84 90V108H196L160 144H84V212Q84 216 80 216H52Q48 216 48 212Z"/>
+
+</g></g><text x="142" y="245" font-family="Helvetica Neue, Arial, sans-serif" font-size="13" fill="#17191D">32 px</text><g transform="translate(224 188) scale(0.09375)"><g transform="">
+  <path fill="#17191D" d="M48 212V84C48 48 72 28 108 28H224L188 64H112C94 64 84 72 84 90V108H196L160 144H84V212Q84 216 80 216H52Q48 216 48 212Z"/>
+
+</g></g><text x="224" y="245" font-family="Helvetica Neue, Arial, sans-serif" font-size="13" fill="#17191D">24 px</text><g transform="translate(306 196) scale(0.0625)"><g transform="">
+  <path fill="#17191D" d="M48 212V84C48 48 72 28 108 28H224L188 64H112C94 64 84 72 84 90V108H196L160 144H84V212Q84 216 80 216H52Q48 216 48 212Z"/>
+
+</g></g><text x="306" y="245" font-family="Helvetica Neue, Arial, sans-serif" font-size="13" fill="#17191D">16 px</text><rect x="36" y="292" width="350" height="164" rx="16" fill="#17191D"/><g transform="translate(60 330) scale(0.25)"><g transform="">
+  <path fill="#FFFFFF" d="M48 212V84C48 48 72 28 108 28H224L188 64H112C94 64 84 72 84 90V108H196L160 144H84V212Q84 216 80 216H52Q48 216 48 212Z"/>
+
+</g></g><text x="60" y="430" font-family="Helvetica Neue, Arial, sans-serif" font-size="13" fill="#A1A4AA">64 px</text><g transform="translate(142 362) scale(0.125)"><g transform="">
+  <path fill="#FFFFFF" d="M48 212V84C48 48 72 28 108 28H224L188 64H112C94 64 84 72 84 90V108H196L160 144H84V212Q84 216 80 216H52Q48 216 48 212Z"/>
+
+</g></g><text x="142" y="430" font-family="Helvetica Neue, Arial, sans-serif" font-size="13" fill="#A1A4AA">32 px</text><g transform="translate(224 370) scale(0.09375)"><g transform="">
+  <path fill="#FFFFFF" d="M48 212V84C48 48 72 28 108 28H224L188 64H112C94 64 84 72 84 90V108H196L160 144H84V212Q84 216 80 216H52Q48 216 48 212Z"/>
+
+</g></g><text x="224" y="430" font-family="Helvetica Neue, Arial, sans-serif" font-size="13" fill="#A1A4AA">24 px</text><g transform="translate(306 378) scale(0.0625)"><g transform="">
+  <path fill="#FFFFFF" d="M48 212V84C48 48 72 28 108 28H224L188 64H112C94 64 84 72 84 90V108H196L160 144H84V212Q84 216 80 216H52Q48 216 48 212Z"/>
+
+</g></g><text x="306" y="430" font-family="Helvetica Neue, Arial, sans-serif" font-size="13" fill="#A1A4AA">16 px</text><text x="36" y="498" font-family="Helvetica Neue, Arial, sans-serif" font-size="16" fill="#17191D">Mirror / rotate</text><g transform="translate(46 520) scale(0.5)"><g transform="translate(256 0) scale(-1 1)">
+  <path fill="#17191D" d="M48 212V84C48 48 72 28 108 28H224L188 64H112C94 64 84 72 84 90V108H196L160 144H84V212Q84 216 80 216H52Q48 216 48 212Z"/>
+
+</g></g><g transform="translate(226 520) scale(0.5)"><g transform="rotate(180 128 128)">
+  <path fill="#17191D" d="M48 212V84C48 48 72 28 108 28H224L188 64H112C94 64 84 72 84 90V108H196L160 144H84V212Q84 216 80 216H52Q48 216 48 212Z"/>
+
+</g></g><text x="426" y="86" font-family="Helvetica Neue, Arial, sans-serif" font-size="20" fill="#17191D">Reciprocal</text><rect x="426" y="108" width="350" height="164" rx="16" fill="#FFFFFF"/><g transform="translate(450 148) scale(0.25)"><g transform="">
+  <path fill="#17191D" d="M36 112V92C36 56 56 36 92 36H220L184 72H96C80 72 72 80 72 96V112Q72 116 68 116H40Q36 116 36 112Z M220 144V164C220 200 200 220 164 220H36L72 184H160C176 184 184 176 184 160V144Q184 140 188 140H216Q220 140 220 144Z"/>
+
+</g></g><text x="450" y="245" font-family="Helvetica Neue, Arial, sans-serif" font-size="13" fill="#17191D">64 px</text><g transform="translate(532 180) scale(0.125)"><g transform="">
+  <path fill="#17191D" d="M36 112V92C36 56 56 36 92 36H220L184 72H96C80 72 72 80 72 96V112Q72 116 68 116H40Q36 116 36 112Z M220 144V164C220 200 200 220 164 220H36L72 184H160C176 184 184 176 184 160V144Q184 140 188 140H216Q220 140 220 144Z"/>
+
+</g></g><text x="532" y="245" font-family="Helvetica Neue, Arial, sans-serif" font-size="13" fill="#17191D">32 px</text><g transform="translate(614 188) scale(0.09375)"><g transform="">
+  <path fill="#17191D" d="M36 112V92C36 56 56 36 92 36H220L184 72H96C80 72 72 80 72 96V112Q72 116 68 116H40Q36 116 36 112Z M220 144V164C220 200 200 220 164 220H36L72 184H160C176 184 184 176 184 160V144Q184 140 188 140H216Q220 140 220 144Z"/>
+
+</g></g><text x="614" y="245" font-family="Helvetica Neue, Arial, sans-serif" font-size="13" fill="#17191D">24 px</text><g transform="translate(696 196) scale(0.0625)"><g transform="">
+  <path fill="#17191D" d="M36 112V92C36 56 56 36 92 36H220L184 72H96C80 72 72 80 72 96V112Q72 116 68 116H40Q36 116 36 112Z M220 144V164C220 200 200 220 164 220H36L72 184H160C176 184 184 176 184 160V144Q184 140 188 140H216Q220 140 220 144Z"/>
+
+</g></g><text x="696" y="245" font-family="Helvetica Neue, Arial, sans-serif" font-size="13" fill="#17191D">16 px</text><rect x="426" y="292" width="350" height="164" rx="16" fill="#17191D"/><g transform="translate(450 330) scale(0.25)"><g transform="">
+  <path fill="#FFFFFF" d="M36 112V92C36 56 56 36 92 36H220L184 72H96C80 72 72 80 72 96V112Q72 116 68 116H40Q36 116 36 112Z M220 144V164C220 200 200 220 164 220H36L72 184H160C176 184 184 176 184 160V144Q184 140 188 140H216Q220 140 220 144Z"/>
+
+</g></g><text x="450" y="430" font-family="Helvetica Neue, Arial, sans-serif" font-size="13" fill="#A1A4AA">64 px</text><g transform="translate(532 362) scale(0.125)"><g transform="">
+  <path fill="#FFFFFF" d="M36 112V92C36 56 56 36 92 36H220L184 72H96C80 72 72 80 72 96V112Q72 116 68 116H40Q36 116 36 112Z M220 144V164C220 200 200 220 164 220H36L72 184H160C176 184 184 176 184 160V144Q184 140 188 140H216Q220 140 220 144Z"/>
+
+</g></g><text x="532" y="430" font-family="Helvetica Neue, Arial, sans-serif" font-size="13" fill="#A1A4AA">32 px</text><g transform="translate(614 370) scale(0.09375)"><g transform="">
+  <path fill="#FFFFFF" d="M36 112V92C36 56 56 36 92 36H220L184 72H96C80 72 72 80 72 96V112Q72 116 68 116H40Q36 116 36 112Z M220 144V164C220 200 200 220 164 220H36L72 184H160C176 184 184 176 184 160V144Q184 140 188 140H216Q220 140 220 144Z"/>
+
+</g></g><text x="614" y="430" font-family="Helvetica Neue, Arial, sans-serif" font-size="13" fill="#A1A4AA">24 px</text><g transform="translate(696 378) scale(0.0625)"><g transform="">
+  <path fill="#FFFFFF" d="M36 112V92C36 56 56 36 92 36H220L184 72H96C80 72 72 80 72 96V112Q72 116 68 116H40Q36 116 36 112Z M220 144V164C220 200 200 220 164 220H36L72 184H160C176 184 184 176 184 160V144Q184 140 188 140H216Q220 140 220 144Z"/>
+
+</g></g><text x="696" y="430" font-family="Helvetica Neue, Arial, sans-serif" font-size="13" fill="#A1A4AA">16 px</text><text x="426" y="498" font-family="Helvetica Neue, Arial, sans-serif" font-size="16" fill="#17191D">Mirror / rotate</text><g transform="translate(436 520) scale(0.5)"><g transform="translate(256 0) scale(-1 1)">
+  <path fill="#17191D" d="M36 112V92C36 56 56 36 92 36H220L184 72H96C80 72 72 80 72 96V112Q72 116 68 116H40Q36 116 36 112Z M220 144V164C220 200 200 220 164 220H36L72 184H160C176 184 184 176 184 160V144Q184 140 188 140H216Q220 140 220 144Z"/>
+
+</g></g><g transform="translate(616 520) scale(0.5)"><g transform="rotate(180 128 128)">
+  <path fill="#17191D" d="M36 112V92C36 56 56 36 92 36H220L184 72H96C80 72 72 80 72 96V112Q72 116 68 116H40Q36 116 36 112Z M220 144V164C220 200 200 220 164 220H36L72 184H160C176 184 184 176 184 160V144Q184 140 188 140H216Q220 140 220 144Z"/>
+
+</g></g><text x="816" y="86" font-family="Helvetica Neue, Arial, sans-serif" font-size="20" fill="#17191D">Horizon</text><rect x="816" y="108" width="350" height="164" rx="16" fill="#FFFFFF"/><g transform="translate(840 148) scale(0.25)"><g transform="">
+  <path fill="#17191D" d="M32 136A96 96 0 0 1 224 136H188A60 60 0 0 0 68 136Z"/>
+  <rect x="32" y="160" width="192" height="36" rx="18" fill="#17191D"/>
+
+</g></g><text x="840" y="245" font-family="Helvetica Neue, Arial, sans-serif" font-size="13" fill="#17191D">64 px</text><g transform="translate(922 180) scale(0.125)"><g transform="">
+  <path fill="#17191D" d="M32 136A96 96 0 0 1 224 136H188A60 60 0 0 0 68 136Z"/>
+  <rect x="32" y="160" width="192" height="36" rx="18" fill="#17191D"/>
+
+</g></g><text x="922" y="245" font-family="Helvetica Neue, Arial, sans-serif" font-size="13" fill="#17191D">32 px</text><g transform="translate(1004 188) scale(0.09375)"><g transform="">
+  <path fill="#17191D" d="M32 136A96 96 0 0 1 224 136H188A60 60 0 0 0 68 136Z"/>
+  <rect x="32" y="160" width="192" height="36" rx="18" fill="#17191D"/>
+
+</g></g><text x="1004" y="245" font-family="Helvetica Neue, Arial, sans-serif" font-size="13" fill="#17191D">24 px</text><g transform="translate(1086 196) scale(0.0625)"><g transform="">
+  <path fill="#17191D" d="M32 136A96 96 0 0 1 224 136H188A60 60 0 0 0 68 136Z"/>
+  <rect x="32" y="160" width="192" height="36" rx="18" fill="#17191D"/>
+
+</g></g><text x="1086" y="245" font-family="Helvetica Neue, Arial, sans-serif" font-size="13" fill="#17191D">16 px</text><rect x="816" y="292" width="350" height="164" rx="16" fill="#17191D"/><g transform="translate(840 330) scale(0.25)"><g transform="">
+  <path fill="#FFFFFF" d="M32 136A96 96 0 0 1 224 136H188A60 60 0 0 0 68 136Z"/>
+  <rect x="32" y="160" width="192" height="36" rx="18" fill="#FFFFFF"/>
+
+</g></g><text x="840" y="430" font-family="Helvetica Neue, Arial, sans-serif" font-size="13" fill="#A1A4AA">64 px</text><g transform="translate(922 362) scale(0.125)"><g transform="">
+  <path fill="#FFFFFF" d="M32 136A96 96 0 0 1 224 136H188A60 60 0 0 0 68 136Z"/>
+  <rect x="32" y="160" width="192" height="36" rx="18" fill="#FFFFFF"/>
+
+</g></g><text x="922" y="430" font-family="Helvetica Neue, Arial, sans-serif" font-size="13" fill="#A1A4AA">32 px</text><g transform="translate(1004 370) scale(0.09375)"><g transform="">
+  <path fill="#FFFFFF" d="M32 136A96 96 0 0 1 224 136H188A60 60 0 0 0 68 136Z"/>
+  <rect x="32" y="160" width="192" height="36" rx="18" fill="#FFFFFF"/>
+
+</g></g><text x="1004" y="430" font-family="Helvetica Neue, Arial, sans-serif" font-size="13" fill="#A1A4AA">24 px</text><g transform="translate(1086 378) scale(0.0625)"><g transform="">
+  <path fill="#FFFFFF" d="M32 136A96 96 0 0 1 224 136H188A60 60 0 0 0 68 136Z"/>
+  <rect x="32" y="160" width="192" height="36" rx="18" fill="#FFFFFF"/>
+
+</g></g><text x="1086" y="430" font-family="Helvetica Neue, Arial, sans-serif" font-size="13" fill="#A1A4AA">16 px</text><text x="816" y="498" font-family="Helvetica Neue, Arial, sans-serif" font-size="16" fill="#17191D">Mirror / rotate</text><g transform="translate(826 520) scale(0.5)"><g transform="translate(256 0) scale(-1 1)">
+  <path fill="#17191D" d="M32 136A96 96 0 0 1 224 136H188A60 60 0 0 0 68 136Z"/>
+  <rect x="32" y="160" width="192" height="36" rx="18" fill="#17191D"/>
+
+</g></g><g transform="translate(1006 520) scale(0.5)"><g transform="rotate(180 128 128)">
+  <path fill="#17191D" d="M32 136A96 96 0 0 1 224 136H188A60 60 0 0 0 68 136Z"/>
+  <rect x="32" y="160" width="192" height="36" rx="18" fill="#17191D"/>
+
+</g></g><text x="36" y="705" font-family="Helvetica Neue, Arial, sans-serif" font-size="16" fill="#17191D">Geometry reference comparison (third-party marks, study only)</text><svg x="36" y="728" width="42" height="62" viewBox="0 0 256 384">
+<g clip-path="url(#clip0_2_15182)">
+<path d="M0 0H256V128H128L0 0ZM0 128H128L256 256H128V384L0 256V128Z" fill="black"/>
+</g>
+<defs>
+<clipPath id="clip0_2_15182">
+<rect width="256" height="384" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+<text x="92" y="765" font-family="Helvetica Neue, Arial, sans-serif" font-size="13" fill="#17191D">framer</text><svg x="216" y="728" width="42" height="62" viewBox="0 0 256 320">
+<g clip-path="url(#clip0_2_14799)">
+<path d="M0 0V320H128V272H48V45.3333H208V224H128V272H256V0H0Z" fill="#212121"/>
+</g>
+<defs>
+<clipPath id="clip0_2_14799">
+<rect width="256" height="320" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+<text x="272" y="765" font-family="Helvetica Neue, Arial, sans-serif" font-size="13" fill="#17191D">pagekit</text><svg x="396" y="728" width="42" height="62" viewBox="0 0 256 256">
+<g clip-path="url(#clip0_2_15024)">
+<path d="M256 256H0V0H256L128 127.949L256 256Z" fill="url(#paint0_linear_2_15024)"/>
+</g>
+<defs>
+<linearGradient id="paint0_linear_2_15024" x1="255.977" y1="-0.0274691" x2="0.0254953" y2="256.026" gradientUnits="userSpaceOnUse">
+<stop offset="0.00343514" stop-color="#E44857"/>
+<stop offset="0.4689" stop-color="#C711E1"/>
+<stop offset="1" stop-color="#7F52FF"/>
+</linearGradient>
+<clipPath id="clip0_2_15024">
+<rect width="256" height="256" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+<text x="452" y="765" font-family="Helvetica Neue, Arial, sans-serif" font-size="13" fill="#17191D">kotlin-icon</text></svg>

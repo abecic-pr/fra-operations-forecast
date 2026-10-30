@@ -1,0 +1,34 @@
+/* Flightpath visual design tokens. Optional handoff, not imported by the app. */
+:root {
+  --fra-canvas: #f5f5f7;
+  --fra-surface: #ffffff;
+  --fra-sidebar: #fbfbfd;
+  --fra-ink: #17191d;
+  --fra-secondary: #656b75;
+  --fra-line: #dde1e7;
+  --fra-blue: #0066cc;
+  --fra-blue-soft: #f0f6ff;
+  --fra-blue-selected: #e8eff9;
+  --fra-suitable: #167247;
+  --fra-suitable-bg: #eaf5ee;
+  --fra-attention: #8a5700;
+  --fra-attention-bg: #fff4db;
+  --fra-unsuitable: #b4232c;
+  --fra-unsuitable-bg: #ffedef;
+  --fra-unknown: #656b75;
+  --fra-unknown-bg: #eef0f3;
+  --fra-font: system-ui, -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+  --fra-type-caption: 0.75rem;
+  --fra-type-body: 0.875rem;
+  --fra-type-body-large: 1rem;
+  --fra-type-section: 1.25rem;
+  --fra-type-title: 2rem;
+  --fra-radius-control: 8px;
+  --fra-radius-card: 20px;
+  --fra-space-unit: 4px;
+  --fra-space-page: 40px;
+  --fra-focus-ring: 0 0 0 3px #0066cc;
+}
+/* In the consuming app, pair status colour with a label and a distinct icon.
+   Use font-variant-numeric: tabular-nums for metrics and timestamps.
+   Keep all actual inputs/buttons at least 44px high on touch layouts. */

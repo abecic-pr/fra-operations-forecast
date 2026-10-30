@@ -1,0 +1,228 @@
+{
+  "contrast_pairs": [
+    {
+      "name": "Body",
+      "foreground": "#17191D",
+      "background": "#FFFFFF",
+      "ratio": 17.6,
+      "passes_normal_text": true
+    },
+    {
+      "name": "Secondary on white",
+      "foreground": "#656B75",
+      "background": "#FFFFFF",
+      "ratio": 5.37,
+      "passes_normal_text": true
+    },
+    {
+      "name": "Secondary on canvas",
+      "foreground": "#656B75",
+      "background": "#F5F5F7",
+      "ratio": 4.93,
+      "passes_normal_text": true
+    },
+    {
+      "name": "Blue on white",
+      "foreground": "#0066CC",
+      "background": "#FFFFFF",
+      "ratio": 5.57,
+      "passes_normal_text": true
+    },
+    {
+      "name": "Blue on selected",
+      "foreground": "#0066CC",
+      "background": "#E8EFF9",
+      "ratio": 4.81,
+      "passes_normal_text": true
+    },
+    {
+      "name": "White on blue",
+      "foreground": "#FFFFFF",
+      "background": "#0066CC",
+      "ratio": 5.57,
+      "passes_normal_text": true
+    },
+    {
+      "name": "Suitable",
+      "foreground": "#167247",
+      "background": "#EAF5EE",
+      "ratio": 5.32,
+      "passes_normal_text": true
+    },
+    {
+      "name": "Attention",
+      "foreground": "#8A5700",
+      "background": "#FFF4DB",
+      "ratio": 5.58,
+      "passes_normal_text": true
+    },
+    {
+      "name": "Unsuitable",
+      "foreground": "#B4232C",
+      "background": "#FFEDEF",
+      "ratio": 5.78,
+      "passes_normal_text": true
+    },
+    {
+      "name": "Unknown",
+      "foreground": "#656B75",
+      "background": "#EEF0F3",
+      "ratio": 4.7,
+      "passes_normal_text": true
+    }
+  ],
+  "vector_logo_structure_passed": [
+    "fra-app-icon.svg",
+    "fra-logo-compact-graphite.svg",
+    "fra-logo-compact-white.svg",
+    "fra-logo-horizontal-graphite.svg",
+    "fra-logo-horizontal-white.svg",
+    "fra-logo-stacked-graphite.svg",
+    "fra-logo-stacked-white.svg",
+    "fra-symbol-black.svg",
+    "fra-symbol-blue.svg",
+    "fra-symbol-graphite.svg",
+    "fra-symbol-small.svg",
+    "fra-symbol-white.svg",
+    "fra-wordmark-graphite.svg",
+    "fra-wordmark-white.svg"
+  ],
+  "png_exports": [
+    {
+      "file": "assets/png/fra-app-icon-1024.png",
+      "size": [
+        1024,
+        1024
+      ],
+      "alpha_extrema": [
+        0,
+        255
+      ]
+    },
+    {
+      "file": "assets/png/fra-logo-horizontal.png",
+      "size": [
+        1020,
+        400
+      ],
+      "alpha_extrema": [
+        0,
+        255
+      ]
+    },
+    {
+      "file": "assets/png/fra-logo-stacked.png",
+      "size": [
+        780,
+        600
+      ],
+      "alpha_extrema": [
+        0,
+        255
+      ]
+    },
+    {
+      "file": "assets/png/fra-symbol-blue.png",
+      "size": [
+        512,
+        512
+      ],
+      "alpha_extrema": [
+        0,
+        255
+      ]
+    },
+    {
+      "file": "assets/png/fra-symbol-graphite.png",
+      "size": [
+        512,
+        512
+      ],
+      "alpha_extrema": [
+        0,
+        255
+      ]
+    },
+    {
+      "file": "assets/png/fra-symbol-white.png",
+      "size": [
+        512,
+        512
+      ],
+      "alpha_extrema": [
+        0,
+        255
+      ]
+    },
+    {
+      "file": "assets/web/apple-touch-icon.png",
+      "size": [
+        180,
+        180
+      ],
+      "alpha_extrema": null
+    },
+    {
+      "file": "assets/web/favicon-16.png",
+      "size": [
+        16,
+        16
+      ],
+      "alpha_extrema": [
+        0,
+        255
+      ]
+    },
+    {
+      "file": "assets/web/favicon-32.png",
+      "size": [
+        32,
+        32
+      ],
+      "alpha_extrema": [
+        0,
+        255
+      ]
+    },
+    {
+      "file": "assets/web/favicon-48.png",
+      "size": [
+        48,
+        48
+      ],
+      "alpha_extrema": [
+        0,
+        255
+      ]
+    },
+    {
+      "file": "assets/web/icon-192.png",
+      "size": [
+        192,
+        192
+      ],
+      "alpha_extrema": null
+    },
+    {
+      "file": "assets/web/icon-512.png",
+      "size": [
+        512,
+        512
+      ],
+      "alpha_extrema": null
+    },
+    {
+      "file": "assets/web/maskable-512.png",
+      "size": [
+        512,
+        512
+      ],
+      "alpha_extrema": null
+    }
+  ],
+  "notes": [
+    "Mockups are illustrative, not model outputs.",
+    "Full-name descriptor requires the minimum sizes in guidelines.md.",
+    "Palette checks are not a complete app accessibility audit."
+  ]
+}

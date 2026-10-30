@@ -16,7 +16,18 @@ def main(argv=None):
     fetch.add_argument("--archive-days", type=int, default=7)
     fetch.add_argument("--labels", type=Path, help="Independent operations-label CSV")
     fetch.add_argument("--live-only", action="store_true", help="Skip historical METAR and forecast archives")
+    api = commands.add_parser("serve", help="Serve local forecast JSON endpoints")
+    api.add_argument("--data-dir", type=Path, default=Path("data"))
+    api.add_argument("--port", type=int, default=8000)
     args = parser.parse_args(argv)
+    if args.command == "serve":
+        from .server import serve
+        try:
+            serve(args.data_dir, args.port)
+        except (OSError, ValueError) as exc:
+            print(f"API failed to start: {exc}", file=sys.stderr)
+            return 1
+        return 0
     if not 1 <= args.history_days <= 30:
         parser.error("--history-days must be between 1 and 30 for this demo")
     if not 0 <= args.archive_days <= args.history_days:

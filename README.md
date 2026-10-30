@@ -4,7 +4,7 @@ Forecasting runway operating direction and Runway 18 weather suitability at Fran
 
 FRA Operations Forecast is a research prototype for the **FraAlliance challenge at AI Week Frankfurt 2026**. The project aims to turn weather observations and forecasts into a probabilistic outlook for airport operations over the next 48 hours.
 
-**Status:** First backend increment: public weather ingestion, a versioned challenge-rule baseline, 48-hour JSON output, and a historical dataset export. Machine-learning training and the UI remain to be implemented. Baseline probabilities are `null`; independent historical operating labels are still needed for model evaluation.
+**Status:** Public weather ingestion, a versioned challenge-rule baseline, 48-hour JSON output, a historical dataset export, and a local JSON API. The teammate owns UI implementation and integration; the temporary data-preview UI has been removed. Machine-learning training remains to be implemented. Baseline probabilities are `null`; independent historical operating labels are still needed for model evaluation.
 
 ## Objective
 
@@ -63,11 +63,19 @@ python3 -m fra_forecast refresh
 
 # Run focused offline checks.
 python3 -m unittest discover -s tests -v
+
+# Serve forecast JSON at http://127.0.0.1:8000/api/forecast.
+python3 -m fra_forecast serve
 ```
 
 Outputs are written to the ignored `data/` directory. The teammate can consume
 `data/forecast.json`; its contract is documented in [docs/backend-data.md](docs/backend-data.md).
-This increment writes files and does not yet expose an HTTP API.
+The API exposes saved forecasts and source diagnostics, plus a manual refresh
+endpoint. It serves no HTML or static UI assets. It binds only to `127.0.0.1`;
+choose a different port with `serve --port 8001`. The teammate's frontend can
+proxy `/api/*` to this server; see the integration notes in the data contract.
+
+Brand assets and illustrative design references are in [branding/](branding/README.md).
 
 Supply independently verified labels with `--labels path/to/operations.csv`,
 using the header in [examples/operations-labels.csv](examples/operations-labels.csv).
