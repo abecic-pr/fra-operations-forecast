@@ -110,3 +110,11 @@ Antonio handoff: confirmed RWY18 assignments and true movement times, actual run
 ## Data-state follow-up (review branch only)
 
 See docs/data-state-audit.md. `/api/verification.latest_complete_observation` supplies same-interval, independently source/hash/QN-screened DWD wind and gust. When the airport report is incomplete and does not already establish a caution or exceedance, the UI may select the complete observation, explicitly showing its source, timestamp and provisional status. Freshness is 90 minutes. Actual gust direction is used for components; no cross-station or cross-time gust fill occurs. Missing evidence stays missing internally; display states name the cause instead of saying “unknown.”
+
+## All-runway direction table (review only)
+
+The dashboard’s “Wind & runway directions” table sits below the primary Runway 18 forecast/map. It shows the latest reported configuration and hourly forecast wind FROM true bearings/cardinals, airport-wide OD and aircraft travel headings TOWARDS each runway end. Centre 07C/25C is the departure focus; Northwest 07L/25R and South 07R/25L are the landing focus in the case layout. West 18 remains a southbound-only departure runway with its own wind status. The three parallel runways always share one forecast OD; the table does not directly flip them on every raw wind change or bypass the backend’s landing/persistence rules.
+
+`src/data/direction.ts` supplies one runway configuration shared by the table, full-map arrows and airport model. It preserves the enriched hourly direction forecast, separates reported Now from forecasts, retains missing directions and distinguishes calm from a missing wind bearing. Rows select the existing shared forecast time; the model, map, wind graph and playback stay synchronized. Horizons are 6/12/24/48 hours, with a compact six-hour table by default and an expanded scrollable list. Table times include the UTC date. Direction switches are marked only across adjacent known samples. The optional, clearly labeled direction-change example switches east→west at +3h and west→east at +8h, without changing live data.
+
+This work is on `codex/airport-direction-outlook`, including the audited data-state branch and teammate main through 7c8ffcf. Publish only this branch; main and Vercel production publication are explicitly prohibited for this increment.

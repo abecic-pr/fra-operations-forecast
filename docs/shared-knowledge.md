@@ -161,3 +161,7 @@ Runway 18 current departure wind, next temporary wind-restriction window and fli
 ## Data-state review branch
 
 The earlier version is on main at 0a68302. Subsequent data-state changes are on codex/data-state-audit only, by Philipp’s explicit request. Independent source/hash/station/time/QN checks now pair DWD mean and gust observations at the same interval, allowing a complete, fresh, explicitly provisional reading when the latest airport report omits gusts. Newer known hazards retain precedence. Labels identify the actual missing input rather than a generic unknown state. Three late fine-cadence gust forecasts, all live runway assignments and official runway availability/capacity remain genuinely absent; do not manufacture them. Full audit and contract: docs/data-state-audit.md.
+
+## Direction outlook review increment
+
+Philipp requested an all-runway wind/direction forecast table and synchronized direction changes. The new codex/airport-direction-outlook branch includes the prior data-state fixes and teammate chart/ML-explanation updates through 7c8ffcf. A compact dashboard table shows wind FROM bearings, OD07/25 and the active Centre departure / Northwest and South landing runway ends, while RWY18 stays southbound departure-only. Selection shares the map/model/chart time; airport direction follows the existing backend rules rather than every wind fluctuation. A labeled example demonstrates both switches. Do not push or merge this increment to main or deploy Vercel production. Source details: docs/frontend-wind.md.
