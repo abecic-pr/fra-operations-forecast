@@ -9,6 +9,7 @@ from pathlib import Path
 import re
 import time
 import urllib.request
+from urllib.error import HTTPError
 from urllib.parse import urlencode
 import zipfile
 from datetime import datetime, timedelta
@@ -80,10 +81,17 @@ class SourceClient:
                 self.checks.append(meta)
                 return body, meta
             except (OSError, ValueError) as exc:
+                if isinstance(exc,HTTPError) and exc.code in (400,401,403,404):
+                    self.checks.append({"source":source,"url":url,"status":"error","error":str(exc)})
+                    raise
                 if attempt == 2:
                     self.checks.append({"source": source, "url": url, "status": "error", "error": str(exc)})
                     raise
-                time.sleep(0.5 * (attempt + 1))
+                if isinstance(exc,HTTPError) and exc.code == 429:
+                    retry_after = number(exc.headers.get("Retry-After")) if exc.headers else None
+                    time.sleep(min(60,max(1,retry_after if retry_after is not None else 20*(attempt+1))))
+                else:
+                    time.sleep(0.5 * (attempt + 1))
 
     def json(self, source, url, immutable=False):
         body, meta = self.get(source, url, immutable)
@@ -104,6 +112,10 @@ def parse_dwd_zip(body, start, end):
                       "quality_code": row.get("QN"), "interval_minutes": 10,
                       "available_at": iso(at + timedelta(hours=1)),
                       "availability_basis": "estimated_one_hour_delay_retrospective_data"}
+            if "FF_10" in row:
+                result["wind_quality_code"] = row.get("QN")
+            if "FX_10" in row:
+                result["gust_quality_code"] = row.get("QN")
             for old, new, factor in [("FF_10", "wind_speed_kt", 1.943844),
                                      ("DD_10", "wind_from_deg_true", 1),
                                      ("FX_10", "wind_gust_kt", 1.943844),
@@ -194,11 +206,11 @@ def parse_forecast(data, model, meta, run_at=None):
     return result
 
 
-def forecast(client, model, run_at=None):
+def forecast(client, model, run_at=None, forecast_days=3):
     params = {"latitude": LAT, "longitude": LON, "hourly": WIND_FIELDS,
               "models": model, "wind_speed_unit": "kn", "timezone": "UTC"}
     if run_at:
-        params.update(run=run_at.strftime("%Y-%m-%dT%H:%M"), forecast_days=3)
+        params.update(run=run_at.strftime("%Y-%m-%dT%H:%M"), forecast_days=forecast_days)
         base = "https://single-runs-api.open-meteo.com/v1/forecast"
     else:
         params["forecast_hours"] = 52

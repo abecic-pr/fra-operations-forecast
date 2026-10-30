@@ -4,7 +4,7 @@ Forecasting runway operating direction and Runway 18 weather suitability at Fran
 
 FRA Operations Forecast is a research prototype for the **FraAlliance challenge at AI Week Frankfurt 2026**. The project aims to turn weather observations and forecasts into a probabilistic outlook for airport operations over the next 48 hours.
 
-**Status:** Public weather ingestion, a versioned challenge-rule baseline, 48-hour JSON output, a historical dataset export, and a local JSON API. The teammate owns UI implementation and integration; the temporary data-preview UI has been removed. Machine-learning training remains to be implemented. Baseline probabilities are `null`; independent historical operating labels are still needed for model evaluation.
+**Status:** Weather ingestion, challenge-rule baseline, ICON-EU wind correction training, chronological evaluation, provisional RWY18 weather probabilities, public FRA departure records assessed for RWY18 weather, and a local JSON API. The teammate owns UI implementation and integration. Actual operating-direction and individual runway-use probabilities still require independent historical labels; those fields remain `null`.
 
 ## Objective
 
@@ -76,6 +76,56 @@ choose a different port with `serve --port 8001`. The teammate's frontend can
 proxy `/api/*` to this server; see the integration notes in the data contract.
 
 Brand assets and illustrative design references are in [branding/](branding/README.md).
+
+## Wind ML quickstart
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -e '.[ml]'
+
+# Cached public backfill: 180 completed days, four ICON-EU runs per day.
+python -m fra_forecast prepare-ml --days 180
+
+# Fit corrections, select on validation dates, calibrate on separate dates,
+# and evaluate once on the chronological final test set.
+python -m fra_forecast train-ml
+
+# Load the local model and append ML outputs to the existing raw forecast.
+python -m fra_forecast refresh --live-only
+python -m fra_forecast serve
+```
+
+Read `forecast[].ml` for corrected wind and RWY18 weather probability. The existing
+fields continue to contain the raw weather/rule baseline. See
+[the ML guide](docs/wind-ml.md) for targets, time alignment, metrics, and fallbacks.
+The first measured outcome is recorded in [the evaluation summary](docs/ml-evaluation.md).
+Model metrics are available at `/api/model-metrics`. Training data, cached
+responses, and model artifacts remain in the ignored `data/` directory.
+
+Historical publication times are estimated, and DWD references may contain later
+quality corrections. Reported backtests are conditional on those assumptions.
+Probability outputs are provisional estimates; their reliability and rare-event
+coverage must be read alongside the score. No improvement is assumed before evaluation.
+
+## Runway 18 departure assessments
+
+Normal refresh now also reads Frankfurt Airport's public departure-board feed
+and matches each upcoming flight to RWY18 weather. No flight API key is needed.
+
+```bash
+# Refresh just the flight list using the saved weather snapshot.
+python -m fra_forecast refresh-departures --hours 48
+
+# Weather-only refresh if flight data is not needed.
+python -m fra_forecast refresh --live-only --no-departures
+```
+
+Read `/api/runway18/departures` or `data/runway18-departures.json`.
+The board provides schedules and departure estimates, but no estimated takeoff
+times or assigned runways. Flights are assessed **for** RWY18 weather; they are
+not presented as confirmed RWY18 departures. Individual runway-use probability
+stays `null`. See [the departure data contract](docs/runway18-departures.md).
 
 Supply independently verified labels with `--labels path/to/operations.csv`,
 using the header in [examples/operations-labels.csv](examples/operations-labels.csv).

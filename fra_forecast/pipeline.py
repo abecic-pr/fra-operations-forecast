@@ -93,7 +93,7 @@ def live_snapshot(now, models, metar, dwd, operations, checks):
                         "After D2 coverage ends, hourly ICON-EU cannot resolve a 30-minute change precisely."]}
 
 
-def refresh(root, history_days=14, archive_days=7, labels_path=None, live_only=False, progress=print):
+def refresh(root, history_days=14, archive_days=7, labels_path=None, live_only=False, progress=print, use_ml=True, include_departures=True):
     root = Path(root)
     root.mkdir(parents=True, exist_ok=True)
     client = SourceClient(root)
@@ -119,6 +119,9 @@ def refresh(root, history_days=14, archive_days=7, labels_path=None, live_only=F
     models = {model: attempt(model, lambda model=model: forecast(client, model), {}) for model in ("icon_d2", "icon_eu")}
     snapshot = live_snapshot(datetime.now(UTC), models, metar, dwd, operations, client.checks + errors)
     snapshot["taf"] = taf
+    from .ml_live import enrich
+    enrich(snapshot,root,client,enabled=use_ml)
+    snapshot["runway18_departures_url"] = "/api/runway18/departures"
     write_json(root / "forecast.json", snapshot)
     if operations:
         with (root / "operations-snapshots.jsonl").open("a") as f:
@@ -139,5 +142,8 @@ def refresh(root, history_days=14, archive_days=7, labels_path=None, live_only=F
         report = dataset_report(rows, dwd, labels)
         write_json(root / "dataset-report.json", report)
     write_json(root / "sources.json", {"checked_at": iso(datetime.now(UTC)), "sources": client.checks, "errors": errors})
+    if include_departures:
+        from .departures import refresh_departures
+        attempt("RWY18 departure assessments",lambda:refresh_departures(root,forecast_snapshot=snapshot,progress=progress),None)
     progress(f"Saved {root / 'forecast.json'} ({snapshot['data_quality']['forecast_hours_available']}/48 forecast hours).", flush=True)
     return snapshot

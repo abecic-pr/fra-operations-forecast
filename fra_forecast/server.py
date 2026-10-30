@@ -7,6 +7,7 @@ import threading
 from urllib.parse import urlsplit
 
 from .pipeline import refresh
+from .wind_ml import MODEL_VERSION
 
 
 def make_handler(data_dir):
@@ -15,6 +16,8 @@ def make_handler(data_dir):
     routes = {
         "/api/forecast": (data_dir / "forecast.json", "application/json"),
         "/api/sources": (data_dir / "sources.json", "application/json"),
+        "/api/model-metrics": (data_dir / "models" / MODEL_VERSION / "metrics.json", "application/json"),
+        "/api/runway18/departures": (data_dir / "runway18-departures.json", "application/json"),
     }
 
     class Handler(BaseHTTPRequestHandler):
@@ -38,7 +41,7 @@ def make_handler(data_dir):
             try:
                 body = path.read_bytes()
             except FileNotFoundError:
-                return self.send_json(404, {"error": "No saved data yet. Run python3 -m fra_forecast refresh --live-only."})
+                return self.send_json(404, {"error": "Requested data is unavailable. Run refresh for forecasts or train-ml for model metrics."})
             self.send_body(200, body, content_type)
 
         def do_POST(self):

@@ -1,4 +1,4 @@
-# Backend data contract, version 1.0
+# Backend data contract, version 1.1
 
 Run `python3 -m fra_forecast refresh --live-only` from the repository root.
 No third-party Python packages or API keys are needed. Refreshes are manual via
@@ -60,8 +60,43 @@ runway use and official operational status separate from weather suitability.
 
 Historical publication time is estimated as model-run time plus four hours;
 DWD historical observations use an estimated one-hour delay. These are unverified
-assumptions. Resolve them before claiming a leakage-free backtest. Model training,
-calibration and held-out operational evaluation are pending.
+assumptions. Resolve them before claiming a leakage-free backtest. Wind correction
+training and held-out wind evaluation are implemented; see [wind-ml.md](wind-ml.md).
+Actual operating-direction training and evaluation still require independent labels.
+
+## Additive ML fields in version 1.1
+
+Existing raw wind fields, rule outputs, baseline `p_*` fields and their semantics
+are retained. The top-level `probability_status` describes that legacy baseline.
+Use the separate `ml_model` and per-hour `ml.probability_status` for ML status.
+
+`forecast_reference_time` is the UTC whole-hour reference immediately before
+generation. Its future targets are exactly reference+1 through reference+48 hours.
+`generated_at` remains the actual retrieval/generation time; existing fractional
+`lead_time_hours` remains measured from generation. `ml.lead_time_hours` is the
+integer horizon measured from the hourly reference. ML source runs are selected
+as available by the reference, with availability assumptions explicitly recorded.
+
+Each `forecast[]` point adds `ml`:
+
+| Field | Meaning |
+| --- | --- |
+| `wind_speed_kt`, `wind_from_deg_true`, `wind_gust_kt` | Validation-selected corrected winds, or explicitly labeled raw fallback |
+| `raw_wind_speed_kt`, `raw_wind_from_deg_true`, `raw_wind_gust_kt` | The exact ICON-EU inputs when inference succeeds |
+| `source_model`, `model_run_at`, `model_lead_hours`, `fetched_at` | Explicit source run and retrieval provenance |
+| `available_at`, `availability_basis`, `availability_verified` | Metadata-confirmed live availability, or an explicit estimated delay |
+| `model_version`, `selected_corrections` | Artifact identity and wind/gust validation gates |
+| `prediction_status`, `fallback_reason` | `ml_corrected`, `raw_icon_eu_validation_fallback`, or `fallback_raw_forecast` |
+| `p_rwy18_weather_usable`, `probability_status` | Provisional weather-suitability estimate, or `null` with an unavailable status |
+| `runway_wind` | Components and challenge-rule weather states from the selected winds |
+| `p_od07`, `p_od25` | `null`: no operating-direction model has independent labels |
+
+Calm predictions below 0.5 kt have unknown direction. Missing gusts remain `null`.
+The `ml_model` summary includes availability, selected corrections, partition
+dates, test scores and limitations. `/api/model-metrics` returns the full report.
+Missing, corrupt, dependency-incompatible or unsupported artifacts retain the
+raw forecast and report an explicit fallback. No ML dependency is required to
+run the baseline. ML output does not replace the baseline's direction-change forecast.
 
 ## Local JSON API and frontend integration
 
@@ -72,6 +107,7 @@ Start `python3 -m fra_forecast serve`. The server exposes these routes at
 | --- | --- |
 | `GET /api/forecast` | The existing version 1.0 snapshot, without schema changes |
 | `GET /api/sources` | The latest source diagnostics |
+| `GET /api/model-metrics` | Full locally trained model evaluation, or 404 if unavailable |
 | `POST /api/refresh` | Fetch current data and return the new snapshot |
 
 The refresh action requires the `X-FRA-Refresh: 1` header and rejects a different
