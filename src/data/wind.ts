@@ -10,6 +10,7 @@ export type WindFrame = {
   gustCrosswindKt: number | null;
   weatherState: WeatherState;
   probability: number | null;
+  operatingDirection?: '07' | '25' | null;
 };
 export type WindDataset = {
   mode: 'demo' | 'live';
@@ -20,9 +21,14 @@ export type WindDataset = {
   observations?: MeasuredWind[];
   issuedForecasts?: IssuedForecast[];
   currentObservation?: WindFrame;
+  operations?: {direction:'07'|'25'|null; observedAt:string|null; since:string|null; source:string};
+  nextDirectionChange?: {status:string; earliest:string|null; latest:string|null};
+  rawMetar?: string;
+  sourceErrors?: number;
 };
 export interface WindProvider { load(signal?: AbortSignal): Promise<WindDataset> }
 export const DEPARTURE_LIMIT_KT = 15;
+export const LANDING_LIMIT_KT = 10;
 export const CROSSWIND_LIMIT_KT = 40;
 export const vectorFromWind = (speedKt: number, fromDegrees: number) => ({
   eastKt: -speedKt * Math.sin(fromDegrees * Math.PI / 180),
@@ -79,7 +85,7 @@ export function frameAt(dataset: WindDataset, hour: number): WindFrame {
   const eastKt = mix(a.eastKt, b.eastKt), northKt = mix(a.northKt, b.northKt), gustKt = mix(a.gustKt, b.gustKt);
   // Preserve backend rule states at hourly points; only interpolate between them for playback.
   if (t === 0) return a;
-  return { validTime: new Date(new Date(a.validTime).getTime() + (new Date(b.validTime).getTime() - new Date(a.validTime).getTime()) * t).toISOString(), eastKt, northKt, gustKt, ...components18(eastKt, northKt, gustKt), probability: mix(a.probability, b.probability) };
+  return { validTime: new Date(new Date(a.validTime).getTime() + (new Date(b.validTime).getTime() - new Date(a.validTime).getTime()) * t).toISOString(), eastKt, northKt, gustKt, ...components18(eastKt, northKt, gustKt), probability: mix(a.probability, b.probability),operatingDirection:a.operatingDirection===b.operatingDirection?a.operatingDirection:null };
 }
 export function sampleField(dataset: WindDataset, frame: WindFrame, lat: number, lon: number) {
   if (frame.eastKt === null || frame.northKt === null) return null;
@@ -110,7 +116,7 @@ export function adaptBackendSnapshot(input: unknown): WindDataset {
     const vector = speed !== null && speed >= 0 && (speed === 0 || (direction !== null && direction >= 0 && direction <= 360)) ? vectorFromWind(speed, direction ?? 0) : { eastKt: null, northKt: null };
     const winds = row.runway_wind as Record<string, Record<string, unknown>> | undefined;
     const runway = winds?.['18'];
-    return { validTime: String(row.valid_time), ...vector, gustKt: numeric(row.wind_gust_kt), tailwindKt: numeric(runway?.tailwind_kt), crosswindKt: numeric(runway?.crosswind_kt), gustCrosswindKt: numeric(runway?.gust_crosswind_kt), weatherState: row.rwy18_weather_state === 'usable' || row.rwy18_weather_state === 'not_usable' ? row.rwy18_weather_state : 'unknown', probability: numeric(row.p_rwy18_weather_usable) };
+    return { validTime: String(row.valid_time), ...vector, gustKt: numeric(row.wind_gust_kt), tailwindKt: numeric(runway?.tailwind_kt), crosswindKt: numeric(runway?.crosswind_kt), gustCrosswindKt: numeric(runway?.gust_crosswind_kt), weatherState: row.rwy18_weather_state === 'usable' || row.rwy18_weather_state === 'not_usable' ? row.rwy18_weather_state : 'unknown', probability: numeric(row.p_rwy18_weather_usable), operatingDirection:row.operating_direction==='07'||row.operating_direction==='25'?row.operating_direction:null };
   });
   if (!frames.length || frames.some((frame, index) => index > 0 && Date.parse(frame.validTime) <= Date.parse(frames[index - 1].validTime))) throw new Error('Forecast points must be nonempty and strictly increasing');
   const current = data.current_weather as Record<string, unknown> | null;
@@ -123,7 +129,13 @@ export function adaptBackendSnapshot(input: unknown): WindDataset {
       currentObservation={validTime:String(current.valid_time),...vector,gustKt,...components18(vector.eastKt,vector.northKt,gustKt),probability:null,weatherState:conditions?.weather_state==='usable'||conditions?.weather_state==='not_usable'?conditions.weather_state:'unknown'};
     }
   }
-  return { mode: 'live', generatedAt: String(data.generated_at), frames, spatialMode: 'uniform-airport', source: 'Airport point forecast', currentObservation };
+  const ops=data.observed_operations as Record<string,unknown>|undefined,change=data.next_operating_direction_change as Record<string,unknown>|undefined;
+  const time=(v:unknown)=>typeof v==='string'&&Number.isFinite(Date.parse(v))?v:null;
+  const quality=data.data_quality as Record<string,unknown>|undefined;
+  return { mode: 'live', generatedAt: String(data.generated_at), frames, spatialMode: 'uniform-airport', source: 'Airport point forecast', currentObservation,
+    operations:ops?{direction:ops.operating_direction==='07'||ops.operating_direction==='25'?ops.operating_direction:null,observedAt:time(ops.observed_at),since:time(ops.since),source:typeof ops.source==='string'?ops.source:'Reported operations'}:undefined,
+    nextDirectionChange:change?{status:String(change.status??'unknown'),earliest:time(change.earliest),latest:time(change.latest)}:undefined,
+    rawMetar:typeof current?.raw_metar==='string'?current.raw_metar:undefined,sourceErrors:Array.isArray(quality?.source_errors)?quality.source_errors.length:0 };
 }
 export function backendWindProvider(url = '/api/forecast'): WindProvider {
   return { load: async signal => {
@@ -199,4 +211,28 @@ export function windSummary(dataset: WindDataset) {
   const peak=available.reduce<{value:number;time:string}|null>((max,point)=>!max||point.value>max.value?point:max,null);
   const observation=dataset.currentObservation??(dataset.mode==='demo'?dataset.frames[0]:undefined);
   return {current:speed(observation),observedAt:observation?.validTime??null,maximum:peak?.value??null,maximumAt:peak?.time??null,average:available.length?available.reduce((sum,point)=>sum+point.value,0)/available.length:null,count:available.length};
+}
+
+
+/** Project wind vectors onto a runway's true heading. Limits apply to components, never total speed. */
+export function runwayComponents(frame:WindFrame|undefined, heading:number) {
+  if(!frame||frame.eastKt===null||frame.northKt===null)return {tailwind:null,headwind:null,crosswind:null,gustCrosswind:null};
+  const rad=heading*Math.PI/180,along=frame.eastKt*Math.sin(rad)+frame.northKt*Math.cos(rad);
+  const crosswind=Math.abs(frame.eastKt*Math.cos(rad)-frame.northKt*Math.sin(rad));
+  const speed=Math.hypot(frame.eastKt,frame.northKt);
+  return {tailwind:Math.max(0,along),headwind:Math.max(0,-along),crosswind,gustCrosswind:frame.gustKt===null?null:speed===0?0:crosswind/speed*frame.gustKt};
+}
+export function departureExceedance(frame:WindFrame) {
+  return frame.tailwindKt!==null&&frame.tailwindKt>=DEPARTURE_LIMIT_KT?'Tailwind ≥15 kt':
+    frame.crosswindKt!==null&&frame.crosswindKt>CROSSWIND_LIMIT_KT?'Crosswind >40 kt':
+    frame.gustCrosswindKt!==null&&frame.gustCrosswindKt>CROSSWIND_LIMIT_KT?'Gust crosswind >40 kt':null;
+}
+export function operationalOutlook(dataset:WindDataset, now=Date.now()) {
+  const future=dataset.frames.filter(f=>Date.parse(f.validTime)>now&&Date.parse(f.validTime)<=now+48*3600000);
+  const first=future.find(f=>departureExceedance(f)!==null);
+  const six=future.filter(f=>Date.parse(f.validTime)<=now+6*3600000&&f.tailwindKt!==null);
+  return {first:first?{time:first.validTime,reason:departureExceedance(first)!}:null,
+    checked:future.filter(f=>f.tailwindKt!==null&&f.crosswindKt!==null&&f.gustCrosswindKt!==null).length,
+    available:future.length,through:future.at(-1)?.validTime??null,
+    peakSix:six.length?Math.max(...six.map(f=>f.tailwindKt!)):null,peakSixSamples:six.length};
 }

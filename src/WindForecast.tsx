@@ -8,7 +8,7 @@ function segments(points: PlotPoint[], maxGap: number) {
   points.forEach(point=>{const last=result.at(-1);if(!last||point.time-last.at(-1)!.time>maxGap)result.push([point]);else last.push(point);});
   return result;
 }
-export default function WindForecast({dataset,hour,horizon,playing,onHour,onHorizon,onPlaying,now=Date.now(),connectionError}:WindView) {
+export default function WindForecast({dataset,hour,horizon,playing,onHour,onHorizon,onPlaying,now=Date.now(),connectionError,hideHorizon=false}:WindView&{hideHorizon?:boolean}) {
   const chartContainer=useRef<HTMLDivElement>(null);
   const [size,setSize]=useState({width:360,height:260});
   useEffect(()=>{if(!chartContainer.current)return;const observer=new ResizeObserver(([entry])=>{const{width,height}=entry.contentRect;if(width>0&&height>0)setSize({width,height});});observer.observe(chartContainer.current);return()=>observer.disconnect();},[]);
@@ -26,7 +26,7 @@ export default function WindForecast({dataset,hour,horizon,playing,onHour,onHori
   const latest=observations.at(-1);
   return <section className="glass forecast-panel" aria-label="Runway 18 wind forecast">
     <div className="panel-heading"><h2>Tailwind forecast</h2><Icon name="wind" size={21}/></div>
-    <div className="forecast-toolbar"><div className="segmented" aria-label="Forecast horizon">{[12,24,48].map(value=><button key={value} aria-pressed={horizon===value} className={horizon===value?'is-active':''} onClick={()=>onHorizon(value)}>{value} hours</button>)}</div></div>
+    {!hideHorizon&&<div className="forecast-toolbar"><div className="segmented" aria-label="Forecast horizon">{[6,12,24,48].map(value=><button key={value} aria-pressed={horizon===value} className={horizon===value?'is-active':''} onClick={()=>onHorizon(value)}>{value} hours</button>)}</div></div>}
     <div className="chart-key"><span><i className="forecast-key"/>Forecast</span><span><i className="measured-key"/>Measured <small>provisional</small></span><span className="chart-unit">kt</span></div>
     <div className="chart-container" ref={chartContainer}>
       <svg key={horizon} className="wind-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`Runway 18 tailwind forecast in blue and ${observations.length} checked provisional measured values in green; current time ${formatUtc(new Date(now).toISOString())} UTC`}>
@@ -39,7 +39,7 @@ export default function WindForecast({dataset,hour,horizon,playing,onHour,onHori
         {measuredPoints.map(point=><circle key={point.time} cx={x(point.time)} cy={y(point.value)} r="2" className="measured-point"><title>{formatUtc(new Date(point.time).toISOString())} UTC · {point.value.toFixed(1)} kt measured · DWD 01420 provisional</title></circle>)}
         {now>=start&&now<=end&&<g aria-label={`Current time ${formatUtc(new Date(now).toISOString())} UTC`}><line x1={x(now)} x2={x(now)} y1={top-5} y2={height-bottom} className="now-line"/><text x={Math.max(left+42,Math.min(width-right-42,x(now)))} y={14} textAnchor="middle" className="now-label">Now {formatUtc(new Date(now).toISOString())}</text></g>}
         {hour>0&&<line x1={x(origin+hour*3600000)} x2={x(origin+hour*3600000)} y1={top} y2={height-bottom} className="hover-line"/>}
-        <rect x={left} y={top} width={width-left-right} height={height-top-bottom} fill="transparent" style={{cursor:'crosshair'}} onClick={event=>{const rect=event.currentTarget.ownerSVGElement!.getBoundingClientRect();const position=(event.clientX-rect.left)/rect.width*width;const selected=(start+(position-left)/(width-left-right)*(end-start)-origin)/3600000;if(selected>=0)onHour(Math.max(0,Math.min(horizon,Math.round(selected*4)/4)));}}/>
+        <rect x={left} y={top} width={width-left-right} height={height-top-bottom} fill="transparent" style={{cursor:'crosshair'}} onClick={event=>{const rect=event.currentTarget.ownerSVGElement!.getBoundingClientRect();const position=(event.clientX-rect.left)/rect.width*width;const selected=(start+(position-left)/(width-left-right)*(end-start)-origin)/3600000;if(selected>=0){onPlaying(false);onHour(Math.max(0,Math.min(horizon,Math.round(selected*4)/4)));}}}/>
       </svg>
     </div>
     <div className="comparison-status"><span className="live-clock">{formatUtc(new Date(now).toISOString())} UTC</span><span>{mae===null?'Awaiting forecast matches':`MAE ${mae.toFixed(1)} kt · ${pairs.length} matches`}</span></div>

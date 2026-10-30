@@ -91,3 +91,24 @@ assert.equal(kpis.current,null); assert.equal(kpis.maximum,5); assert.equal(kpis
 assert.equal(w.windSummary({...kpiBase,currentObservation:{...statusFrame,eastKt:0,northKt:8}}).current,8);
 assert.equal(w.windSummary({...kpiBase,frames:[]}).average,null);
 console.log('Wind KPI checks passed: scalar speeds, missing observation, missing samples and 48-hour bounds.');
+
+const westWind=w.vectorFromWind(12,70);
+const opFrame={...statusFrame,...westWind,gustKt:15,...w.components18(westWind.eastKt,westWind.northKt,15),operatingDirection:'25'};
+close(w.runwayComponents(opFrame,250).tailwind,12);
+assert.ok(w.runwayComponents(opFrame,250).tailwind>=w.LANDING_LIMIT_KT);
+assert.equal(w.departureExceedance(opFrame),null); // RWY18 remains independent of landing limits.
+assert.equal(w.departureExceedance({...statusFrame,tailwindKt:15}),'Tailwind ≥15 kt');
+assert.equal(w.departureExceedance({...statusFrame,crosswindKt:40,gustCrosswindKt:40}),null);
+assert.equal(w.departureExceedance({...statusFrame,gustCrosswindKt:40.01}),'Gust crosswind >40 kt');
+const before=Date.parse('2026-10-30T10:00:00Z');
+const opData={...kpiBase,frames:[{...statusFrame,validTime:'2026-10-30T09:00:00Z',tailwindKt:20},{...statusFrame,validTime:'2026-10-30T11:00:00Z',tailwindKt:8},{...statusFrame,validTime:'2026-10-30T12:00:00Z',tailwindKt:15}]};
+assert.equal(w.operationalOutlook(opData,before).first.time,'2026-10-30T12:00:00Z');
+assert.equal(w.operationalOutlook(opData,before).peakSix,15);
+assert.equal(w.runwayComponents(undefined,70).tailwind,null);
+assert.equal(w.operationalOutlook({...opData,frames:[{...statusFrame,validTime:'2026-10-30T11:00:00Z',gustCrosswindKt:null}]},before).checked,0);
+console.log('Operations checks passed: landing 10 kt versus departure 15 kt, crosswind >40 kt, missing data and future-only threshold hours.');
+const operationalPayload={...payload,observed_operations:{operating_direction:'25',observed_at:'2026-10-30T10:00:00Z',since:'2026-10-30T09:00:00Z',source:'Test source'},forecast:payload.forecast.map(f=>({...f,operating_direction:'07'})),next_operating_direction_change:{status:'change_expected',latest:'2026-10-30T11:00:00Z'}};
+const operationalAdapter=w.adaptBackendSnapshot(operationalPayload);
+assert.equal(operationalAdapter.operations.direction,'25');
+assert.equal(operationalAdapter.frames[0].operatingDirection,'07');
+assert.equal(operationalAdapter.nextDirectionChange.latest,'2026-10-30T11:00:00Z');
