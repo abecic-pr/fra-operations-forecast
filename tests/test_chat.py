@@ -260,6 +260,26 @@ class ChatHTTPTests(unittest.TestCase):
                 self.assertEqual(self.request('{"message":"Hi"}', headers)[0], 200)
             self.assertEqual(self.request('{"message":"Hi"}', headers)[0], 429)
 
+    def test_dashboard_bot_routes_preserve_existing_flight_chat(self):
+        body = json.dumps({'message': 'Show wind', 'selected_time': '2026-10-30T12:00:00Z'})
+        headers = {'Content-Type': 'application/json', 'X-FRA-Chat': '1'}
+        path = '/api/weather-bot'
+        self.assertEqual(self.request(body, path=path)[0], 403)
+        self.assertEqual(self.request(body, {**headers, 'Origin': 'http://other.test'}, path=path)[0], 403)
+        self.assertEqual(self.request('broken', headers, path=path)[0], 400)
+        self.assertEqual(self.request('x' * 40001, headers, path=path)[0], 413)
+        with patch('fra_forecast.weather_bot.settings', return_value={'OPENAI_API_KEY': '', 'OPENAI_MODEL': 'test'}):
+            self.assertFalse(self.request(path=path + '/status', method='GET')[1]['configured'])
+            self.assertEqual(self.request(body, headers, path=path)[0], 503)
+        preview_status, preview = self.request(path=path + '/preview', method='GET')
+        self.assertEqual(preview_status, 200)
+        self.assertEqual(preview['mode'], 'preview')
+        self.assertEqual(preview['visuals'][1]['type'], 'airport_map')
+        with patch('fra_forecast.server.weather_bot.ask', return_value={'answer': 'Saved wind', 'visuals': []}) as bot:
+            self.assertEqual(self.request(body, headers, path=path), (200, {'answer': 'Saved wind', 'visuals': []}))
+            self.assertEqual(bot.call_args.args[1]['selected_time'], '2026-10-30T12:00:00Z')
+        self.assertEqual(self.request(path='/api/verification', method='GET')[0], 200)
+
 
 if __name__ == "__main__":
     unittest.main()

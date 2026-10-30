@@ -138,6 +138,12 @@ The temporary inspection UI has been removed. The teammate owns the replacement
 UI. Preserve the distinctions between observations, forecasts, predictions,
 missing gusts, weather suitability, observed use, and official runway status.
 
+## Live observation comparison extension
+
+The local UI now uses the live API and requests refreshed sources every 10 minutes while visible, with read-only polling every 30 seconds and a manual refresh control. The API itself still performs no autonomous background polling.
+
+`GET /api/verification` returns screened provisional DWD station 01420 mean-wind observations and archived issued forecasts, supporting `/api/forecast` schemas 1.0 and 1.1. The archive is `data/issued-forecasts.jsonl`. Only predictions valid after actual archive time are saved; past values are not backfilled. The green trace requires source/hash, station, timestamp, finite-value and QN 2/3 checks. These measurements remain provisional. See [frontend wind integration](frontend-wind.md) for comparison rules and refresh behavior.
+
 `POST /api/chat` adds read-only airport/flight questions using a backend OpenAI key.
 It has its own response schema and leaves the existing forecast/departure outputs
 unchanged. See [the chatbot contract](chatbot.md) for configuration, request and
@@ -212,3 +218,7 @@ Submission exports use a separate internal schema `1.0`: 48 rows per explicit
 issue, with source/model metadata and null learned OD when unavailable.
 `report.json` carries coverage, artifact/data identities, availability assumptions,
 and `jury_schema_confirmed: false`; `incomplete` is not submission-ready.
+
+The dashboard chart/map assistant uses `/api/weather-bot`, `/api/weather-bot/status`,
+and `/api/weather-bot/preview`; see [its contract](ai-weather-bot.md).
+Its response format is separate from the unchanged `/api/chat` flight assistant.

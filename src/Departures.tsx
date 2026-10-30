@@ -1,0 +1,24 @@
+import { useEffect, useState } from 'react';
+import Icon from './Icon';
+import { adaptDepartures, frankfurtTime, type Departure, type DepartureBoard } from './data/departures';
+
+export default function Departures({now}:{now:number}) {
+  const [preview,setPreview]=useState(false),[board,setBoard]=useState<DepartureBoard|null>(null),[failed,setFailed]=useState(false);
+  const [selected,setSelected]=useState<Departure|null>(null),[sampleStart]=useState(()=>Date.now());
+  useEffect(()=>{
+    const controller=new AbortController();
+    const load=async()=>{try{const r=await fetch('/api/runway18/departures',{signal:controller.signal});if(!r.ok)throw Error('Unavailable');const data=adaptDepartures(await r.json());if(!controller.signal.aborted){setBoard(data);setFailed(false);}}catch{if(!controller.signal.aborted)setFailed(true);}};
+    void load();const timer=window.setInterval(()=>{if(!document.hidden)void load();},60000);
+    return()=>{controller.abort();clearInterval(timer);};
+  },[]);
+  const upcoming=board?.flights.filter(f=>Date.parse(f.at)>=now)??[];
+  const samples=(runway:string,index:number):Departure[]=>[0,1,2].map((n)=>({id:`sample-${index}-${n}`,number:[['DE 1719','LH 1046','LH 1308'],['LH 400','DE 2032','LH 906']][index][n],destination:[['Palma de Mallorca','Paris','Beirut'],['New York','Seattle','London']][index][n],at:new Date(sampleStart+(n*45)*60000).toISOString(),timeBasis:'Scheduled',assignedRunway:runway,status:'Design example',sourceUrl:null}));
+  const rows=preview?[{label:'18',direction:'Southbound',flights:samples('18',0)},{label:'07C / 25C',direction:'Centre runway',flights:samples('07C / 25C',1)}]:[{label:'Unassigned',direction:'Runway not provided',flights:upcoming.slice(0,8)}];
+  return <section className="departures-section" aria-labelledby="departures-title">
+    <div className="departures-heading"><div><h2 id="departures-title">Next flights</h2><p>{preview?'Illustrative flights and runway assignments.':'Published departures · runway assignments unavailable.'}</p></div><div className="segmented departures-mode" aria-label="Departure data"><button className={!preview?'is-active':''} aria-pressed={!preview} onClick={()=>{setPreview(false);setSelected(null);}}>Live board</button><button className={preview?'is-active':''} aria-pressed={preview} onClick={()=>{setPreview(true);setSelected(null);}}>Design preview</button></div></div>
+    <div className="departure-board-meta"><span className={preview?'preview-label':'board-source'}>{preview?'Demo data':failed?'Connection unavailable':board?.status==='partial'?'Partial board':board?.status==='unavailable'?'Source unavailable':board?'FRA departure board':'Loading departures…'}</span><span>{frankfurtTime(now)} · Frankfurt time</span></div>
+    {rows.map(row=><div className="departure-lane" key={row.label}><div className="departure-runway"><strong>{row.label}</strong><span>{row.direction}</span></div><div className="departure-track"><span className="departure-now" aria-hidden="true"/><div className="departure-cards">{row.flights.map((flight,i)=><button key={flight.id} className={`departure-pill ${preview&&i===0?'sample-current':''}`} onClick={()=>setSelected(flight)} aria-label={`${preview?'Example: ':''}${flight.number} to ${flight.destination}, ${flight.timeBasis.toLowerCase()} departure ${frankfurtTime(flight.at)}, ${flight.assignedRunway?`runway ${flight.assignedRunway}`:'runway unassigned'}`}><Icon name="takeoff" size={19}/><span><strong>{flight.number}</strong><small>{flight.destination}</small></span><time dateTime={flight.at}>{preview&&i===0?'Now':frankfurtTime(flight.at)}</time></button>)}</div>{!row.flights.length&&<p className="departure-empty">{failed||board?.status==='unavailable'?'The flight feed is unavailable. Try the design preview.':board?'No upcoming flights in this saved snapshot.':'Connecting to the departure board…'}</p>}</div></div>)}
+    {selected&&<div className="departure-detail" role="region" aria-label="Selected flight"><div><strong>{selected.number} · {selected.destination}</strong><p>{preview?'Design example · ':''}{selected.timeBasis} departure {frankfurtTime(selected.at)} · {selected.status}. {selected.assignedRunway?`Example runway ${selected.assignedRunway}.`:'Runway unassigned; takeoff time unavailable.'}</p></div><button aria-label="Close flight details" onClick={()=>setSelected(null)}><Icon name="close" size={16}/></button></div>}
+    <div className="departures-footnote"><span>{preview?'Runway 18: southbound only. Centre runway: one airport-wide direction at a time.':`Scheduled/estimated departure times, not takeoff times.${board?` Updated ${frankfurtTime(board.generatedAt)} Frankfurt time.`:''}${failed&&board?' Showing the last received snapshot.':''}`}</span>{!preview&&<a href="https://www.frankfurt-airport.com/en/flights-and-transfer/departures.html" target="_blank" rel="noreferrer">View source <Icon name="arrow" size={13}/></a>}</div>
+  </section>;
+}

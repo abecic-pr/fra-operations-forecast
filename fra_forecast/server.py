@@ -8,15 +8,17 @@ import threading
 import time
 from urllib.parse import urlsplit
 
+from . import chat, weather_bot
 from .pipeline import refresh
+from .verification import comparison_payload, remember_forecast
 from .wind_ml import MODEL_VERSION
-from . import chat
 
 
 def make_handler(data_dir):
     data_dir = Path(data_dir)
     refresh_lock = threading.Lock()
     chat_lock = threading.Lock()
+    weather_bot_lock = threading.Lock()
     chat_slots = threading.BoundedSemaphore(2)
     chat_requests = deque()
     routes = {
@@ -39,12 +41,27 @@ def make_handler(data_dir):
             self.send_header("Cache-Control", "no-store")
             self.send_header("X-Content-Type-Options", "nosniff")
             self.end_headers()
-            self.wfile.write(body)
+            try:
+                self.wfile.write(body)
+            except (BrokenPipeError, ConnectionResetError):
+                pass  # A cancelled browser request does not invalidate the snapshot.
 
         def send_json(self, status, value):
             self.send_body(status, json.dumps(value, allow_nan=False).encode())
 
         def do_GET(self):
+            if urlsplit(self.path).path == '/api/weather-bot/status':
+                return self.send_json(200, weather_bot.status())
+            if urlsplit(self.path).path == '/api/weather-bot/preview':
+                try:
+                    return self.send_json(200, weather_bot.preview(data_dir))
+                except (OSError, ValueError, KeyError):
+                    return self.send_json(503, {'error': 'Saved weather data is unavailable.'})
+            if urlsplit(self.path).path == "/api/verification":
+                try:
+                    return self.send_json(200, comparison_payload(data_dir))
+                except (OSError, ValueError) as exc:
+                    return self.send_json(502, {"error": f"Verification data unavailable: {exc}"})
             route = routes.get(urlsplit(self.path).path)
             if route is None:
                 return self.send_json(404, {"error": "Not found"})
@@ -56,6 +73,28 @@ def make_handler(data_dir):
             self.send_body(200, body, content_type)
 
         def do_POST(self):
+            if urlsplit(self.path).path == '/api/weather-bot':
+                origin = self.headers.get('Origin')
+                expected = 'http://' + self.headers.get('Host', '')
+                if self.headers.get('X-FRA-Chat') != '1' or (origin and origin != expected):
+                    return self.send_json(403, {'error': 'Chat requires a same-origin request.'})
+                try:
+                    length = int(self.headers.get('Content-Length', '0'))
+                    if length <= 0 or length > 40000:
+                        return self.send_json(413, {'error': 'Question is too large.'})
+                    body = json.loads(self.rfile.read(length))
+                except (ValueError, UnicodeError):
+                    return self.send_json(400, {'error': 'Invalid question.'})
+                if not weather_bot_lock.acquire(blocking=False):
+                    return self.send_json(429, {'error': 'The bot is answering another question. Please try shortly.'})
+                try:
+                    return self.send_json(200, weather_bot.ask(data_dir, body))
+                except weather_bot.ChatError as exc:
+                    return self.send_json(exc.status, {'error': str(exc)})
+                except (OSError, ValueError, KeyError):
+                    return self.send_json(503, {'error': 'Project data is unavailable. Refresh the saved data and retry.'})
+                finally:
+                    weather_bot_lock.release()
             if urlsplit(self.path).path == "/api/chat":
                 return self.chat_reply()
             if urlsplit(self.path).path != "/api/refresh":
@@ -112,6 +151,9 @@ def make_handler(data_dir):
 
 
 def serve(data_dir, port=8000):
+    snapshot = Path(data_dir) / "forecast.json"
+    if snapshot.exists():
+        remember_forecast(data_dir, json.loads(snapshot.read_text()))
     server = ThreadingHTTPServer(("127.0.0.1", port), make_handler(data_dir))
     print(f"FRA data API: http://127.0.0.1:{server.server_port}/api/forecast", flush=True)
     try:

@@ -6,7 +6,43 @@ Forecasting runway operating direction and Runway 18 weather suitability at Fran
 
 FRA Operations Forecast is a research prototype for the **FraAlliance challenge at AI Week Frankfurt 2026**. The project aims to turn weather observations and forecasts into a probabilistic outlook for airport operations over the next 48 hours.
 
-**Status:** Working weather ingestion and 48-hour forecast, validation-selected model comparison, GFS source comparison, discovery reports, optional AI coordinator, replay/export, and local JSON API. The one-page [model card](docs/model-card.md) records measured results and incomplete challenge deliverables. Learned operating direction still needs independent historical labels; the training/inference/evaluation code is implemented and those live probabilities remain `null`. The teammate owns UI.
+**Status:** Working weather ingestion and 48-hour forecast, validation-selected model comparison, GFS source comparison, discovery reports, optional AI coordinator, replay/export, and local JSON API. The one-page [model card](docs/model-card.md) records measured results and incomplete challenge deliverables. Learned operating direction still needs independent historical labels; the training/inference/evaluation code is implemented and those live probabilities remain `null`. Philipp’s dashboard and map display baseline wind, provisional measurements and real departures.
+
+## Run the frontend locally
+
+Use Node.js 22.12+ or 20.19+.
+
+```sh
+npm ci
+# In a separate terminal, first start the Python data API below.
+npm run dev
+```
+
+Open http://127.0.0.1:5173/ or the map at http://127.0.0.1:5173/#map.
+The frontend now uses the local data API. Start it in a separate terminal:
+
+```sh
+python3 -m fra_forecast refresh --live-only --history-days 1 --archive-days 0
+python3 -m fra_forecast serve
+```
+
+Only Runway 18 is highlighted. The blue chart line is forecast tailwind and the
+green line is source-screened DWD measured tailwind, labeled provisional. The
+clock marker shows actual UTC time independently of forecast playback. The UI
+reads saved data every 30 seconds and requests fresh sources every 10 minutes
+while visible. Manual refresh is also available. Never show an accuracy score
+until an observation matches a forecast archived before that observation time.
+
+```sh
+npm run check:wind
+npm run build
+```
+
+See [frontend wind integration](docs/frontend-wind.md) for the provider boundary,
+schema 1.0/1.1 adapter, controls, demo limitations and later API integration. See
+[map data sources](public/data/README.md) for OSM and satellite attribution.
+Use separate branches and test locally before pushing; the shared project
+knowledge-base rule is in [AGENTS.md](AGENTS.md).
 
 ## Objective
 
@@ -151,6 +187,14 @@ owns the chat panel; see [setup and the JSON contract](docs/chatbot.md).
 Built for **AI Week Frankfurt, 30 October 2026**, based on the FraAlliance brief *Frankfurt Airport Operating Direction Forecast*.
 
 The prototype is intended for research and demonstration. Its predictions are not operational air traffic control instructions.
+
+### AI Weather Bot
+
+The dashboard includes a project assistant with data lookups, forecast charts and an interactive airport map. It is intentionally **disconnected from OpenAI** for Antonio's handoff. Use Preview charts & map to review real saved data without a key.
+
+To enable AI answers, add `OPENAI_API_KEY` to the ignored root `.env` file (see `.env.example`). The default backend model is `gpt-5-mini`; set `OPENAI_MODEL` to change it. Keep the key on the Python backend, never in VITE_ variables. The status refreshes automatically; no key is committed. A real OpenAI completion still needs account/model access and has not been tested without a key.
+
+See [AI Weather Bot setup and data contract](docs/ai-weather-bot.md) for source scope, limits and the `/api/weather-bot` endpoints. The existing `/api/chat` flight assistant remains separate. The model reasons internally and returns a short explanation with sources. Weather suitability and official runway closure remain distinct.
 
 ## Comparison demo and submission handoff
 
