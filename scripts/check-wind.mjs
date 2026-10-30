@@ -1,0 +1,46 @@
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import { transformWithOxc } from 'vite';
+const source = await readFile(new URL('../src/data/wind.ts', import.meta.url), 'utf8');
+const { code } = await transformWithOxc(source, 'wind.ts');
+const w = await import('data:text/javascript;base64,' + Buffer.from(code).toString('base64'));
+const close = (a,b) => assert.ok(Math.abs(a-b)<1e-8,`${a} != ${b}`);
+const north = w.vectorFromWind(20,0);
+close(north.eastKt,0); close(north.northKt,-20);
+assert.equal(w.components18(north.eastKt,north.northKt,25).weatherState,'not_usable');
+close(w.components18(0,-15,20).tailwindKt,15);
+assert.equal(w.components18(0,-15,20).weatherState,'not_usable');
+assert.equal(w.components18(40,0,40).weatherState,'usable');
+assert.equal(w.components18(40.01,0,40.01).weatherState,'not_usable');
+assert.equal(w.components18(10,0,null).weatherState,'unknown');
+assert.equal(w.components18(null,null,20).tailwindKt,null);
+close(w.windFromVector(north.eastKt,north.northKt),0);
+const demo = w.demoDataset(new Date('2026-10-30T10:00:00Z'));
+assert.equal(demo.frames.length,49);
+assert.ok(demo.frames.every(frame=>frame.probability===null));
+assert.ok(demo.frames.some(frame=>frame.weatherState==='usable'));
+assert.ok(demo.frames.some(frame=>frame.weatherState==='not_usable'));
+const current = w.frameAt(demo,0), later = w.frameAt(demo,4);
+assert.notEqual(current.northKt,later.northKt);
+const field = w.sampleField(demo,current,50.026,8.526);
+close(field.east,current.eastKt); close(field.north,current.northKt);
+assert.equal(w.sampleField(demo,current,0,0),null);
+const half = w.frameAt(demo,.5);
+close(half.eastKt,(demo.frames[0].eastKt+demo.frames[1].eastKt)/2);
+assert.equal(half.validTime,'2026-10-30T10:30:00.000Z');
+const payload = {schema_version:'1.0',generated_at:'2026-10-30T10:00:00Z',forecast:[
+ {valid_time:'2026-10-30T11:00:00Z',wind_speed_kt:20,wind_from_deg_true:0,wind_gust_kt:25,rwy18_weather_state:'not_usable',runway_wind:{'18':{tailwind_kt:20,crosswind_kt:0,gust_crosswind_kt:0}},p_rwy18_weather_usable:null},
+ {valid_time:'2026-10-30T12:00:00Z',wind_speed_kt:null,wind_from_deg_true:null,rwy18_weather_state:'unknown'}
+]};
+const live = w.adaptBackendSnapshot(payload);
+assert.equal(live.mode,'live'); assert.equal(live.spatialMode,'uniform-airport');
+assert.equal(live.frames[0].tailwindKt,20); assert.equal(live.frames[0].probability,null);
+assert.equal(live.frames[1].eastKt,null); assert.equal(live.frames[1].tailwindKt,null);
+assert.equal(w.frameAt(live,0).weatherState,'unknown','Future weather must not be shown as current');
+assert.equal(w.frameAt(live,1).tailwindKt,20);
+assert.equal(w.frameAt(live,3).weatherState,'unknown','Do not extrapolate missing forecast coverage');
+assert.equal(w.frameAt(live,1.5).eastKt,null,'Do not interpolate across missing weather');
+assert.throws(()=>w.adaptBackendSnapshot({...payload,schema_version:'2.0'}));
+assert.throws(()=>w.adaptBackendSnapshot({...payload,forecast:[...payload.forecast].reverse()}));
+assert.throws(()=>w.adaptBackendSnapshot({...payload,forecast:[]}));
+console.log('Wind checks passed: direction, thresholds, synchronized demo field, time alignment and backend missing data.');
