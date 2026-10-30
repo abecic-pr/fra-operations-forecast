@@ -109,11 +109,28 @@ python3 -m fra_forecast serve
 Outputs are written to the ignored `data/` directory. The teammate can consume
 `data/forecast.json`; its contract is documented in [docs/backend-data.md](docs/backend-data.md).
 The API exposes saved forecasts and source diagnostics, plus a manual refresh
-endpoint. It serves no HTML or static UI assets. It binds only to `127.0.0.1`;
+endpoint. A standalone presentation page is at `/how-it-works`. It binds only to `127.0.0.1`;
 choose a different port with `serve --port 8001`. The teammate's frontend can
 proxy `/api/*` to this server; see the integration notes in the data contract.
 
 Brand assets and illustrative design references are in [branding/](branding/README.md).
+
+## ML presentation page
+
+Run `python3 -m fra_forecast serve`, then open
+[How our ML works](http://127.0.0.1:8000/how-it-works). Restart an already-running
+server to load the new route. This standalone page was added at the user's
+request; the teammate's main UI remains separately owned.
+
+The page explains data alignment, residual correction, empirical uncertainty,
+and the 48-hour runway outputs. Select the four steps with a pointer or keyboard
+arrow keys. Its validation comparison and 1/6/24-hour test scores come from the
+existing `/api/model-comparison` report, with explicit exploratory-test and
+missing-label limitations. Without local artifacts, the explanation still works
+and the results show an unavailable state. It adds no dependencies, network
+weather refreshes, or changes to forecast JSON. The teammate can link directly to
+`/how-it-works`; a frontend proxy must forward that path and its assets, plus
+`/api/model-comparison`. Page files are in `fra_forecast/presentation/`.
 
 ## Wind ML quickstart
 

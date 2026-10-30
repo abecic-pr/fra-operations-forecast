@@ -17,3 +17,6 @@ fra-forecast = "fra_forecast.cli:main"
 
 [tool.setuptools.packages.find]
 include = ["fra_forecast*"]
+
+[tool.setuptools.package-data]
+fra_forecast = ["presentation/*.html", "presentation/*.css", "presentation/*.js"]

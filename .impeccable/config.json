@@ -1,0 +1,26 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "flat-type-hierarchy",
+        "value": "*",
+        "files": [
+          "fra_forecast/presentation/index.html"
+        ],
+        "createdAt": "2026-10-30T13:44:35.863Z",
+        "reason": "Agent verified rendered CSS: h1 40px, h3 28px, h2 20px and body 16px at the current viewport. The detector cannot resolve the server-mounted /how-it-works/style.css URL and incorrectly assigns every heading 16px."
+      },
+      {
+        "rule": "border-accent-on-rounded",
+        "value": "*",
+        "files": [
+          "fra_forecast/presentation/style.css"
+        ],
+        "createdAt": "2026-10-30T13:44:35.925Z",
+        "reason": "Agent verified .steps button has computed border-radius 0px. Its 3px bottom border is the active ARIA tab selection indicator, not an accent on a rounded card."
+      }
+    ]
+  }
+}
