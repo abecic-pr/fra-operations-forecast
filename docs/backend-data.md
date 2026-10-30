@@ -1,0 +1,64 @@
+# Backend data contract, version 1.0
+
+Run `python3 -m fra_forecast refresh --live-only` from the repository root.
+No third-party Python packages or API keys are needed. Refreshes are manual in
+this increment. The command exits nonzero if no forecast hours are available;
+partial source failures are recorded in the JSON and may still produce usable output.
+
+## Frontend file: `data/forecast.json`
+
+All timestamps are ISO 8601 UTC. Wind speeds are knots; directions are the
+direction wind comes **from**, measured clockwise from true north. Missing values
+are `null`, never zero. `forecast` always contains 48 whole-hour points strictly
+after `generated_at`; `lead_time_hours` can therefore be fractional.
+
+| Field | Meaning |
+| --- | --- |
+| `schema_version`, `generated_at`, `ruleset` | Contract, freshness and versioned challenge thresholds |
+| `observed_operations` | Current public UNH/DFS direction snapshot; official RWY18 status remains unknown |
+| `current_weather`, `metar`, `dwd_observation` | Selected latest observation and the separate provider observations |
+| `current_runway_wind` | Headwind, tailwind, mean/gust crosswind, margins and weather suitability for 07/25/18 |
+| `forecast[]` | Valid time, model, source, wind fields, estimated direction and RWY18 weather state |
+| `forecast[].runway_wind` | Per-runway derived wind components when forecast data exists |
+| `forecast[].reason_codes` | Rule decisions or missing-data explanation |
+| `p_od07`, `p_od25`, `p_rwy18_weather_usable` within each point | Always `null` for the deterministic baseline |
+| `next_operating_direction_change`, `next_rwy18_weather_change` | First rule-based change window; probability is `null` |
+| `data_quality`, `limitations` | Missing sources, observation age, coverage and approximation details |
+
+Consumers must handle absent optional fields on missing forecast points. Weather
+states are `usable`, `not_usable`, or `unknown`. Direction is `07`, `25`, or `null`.
+The initial direction comes from the current observed snapshot when available;
+otherwise it is inferred from wind and labeled accordingly. It is not official
+airport status. Live model-run timestamps are unknown and remain `null`.
+
+ICON-D2 supplies 15-minute inputs where available; ICON-EU hourly inputs cover
+the remaining horizon. Hourly samples cannot resolve the >30-minute persistence
+rule precisely. Gust crosswind uses mean direction when gust direction is absent.
+Missing gust data produces unknown suitability unless a known component already
+exceeds a limit. These limitations must travel with the output.
+
+## Historical outputs
+
+- `observations.csv`: DWD wind and gust observations, converted from m/s to knots.
+- `metar-history.csv`: IEM EDDF observations, keeping raw METAR text.
+- `archived-forecasts.json`: separate daily ICON-D2 model runs.
+- `training-dataset.csv`: forecast inputs, baseline results, future reference
+  weather, and independent operations labels if supplied. Fields beginning with
+  `reference_` or `target_` are evaluation data, never prediction inputs.
+- `dataset-report.json`: row counts, missing fields, time validation, and wind
+  forecast diagnostics at 1/6/24 hours. Operational accuracy is not fabricated.
+- `operations-snapshots.jsonl`: newly retrieved current operations snapshots;
+  the page's `since` value is not used to invent historical labels.
+- `sources.json` and `raw/`: URLs, retrieval times, response hashes and raw
+  responses. Successive live responses are retained.
+
+Label CSV intervals use `valid_from <= time < valid_to`, explicit timezones,
+nonoverlapping intervals, and a nonempty source. `available_at` controls whether
+a label may initialize a historical forecast. Direction is `07`, `25`, blank or
+`unknown`; RWY18 weather suitability is `0`, `1`, blank or `unknown`. Keep actual
+runway use and official operational status separate from weather suitability.
+
+Historical publication time is estimated as model-run time plus four hours;
+DWD historical observations use an estimated one-hour delay. These are unverified
+assumptions. Resolve them before claiming a leakage-free backtest. Model training,
+calibration, held-out operational evaluation and an HTTP API are pending.

@@ -4,7 +4,7 @@ Forecasting runway operating direction and Runway 18 weather suitability at Fran
 
 FRA Operations Forecast is a research prototype for the **FraAlliance challenge at AI Week Frankfurt 2026**. The project aims to turn weather observations and forecasts into a probabilistic outlook for airport operations over the next 48 hours.
 
-**Status:** Initial project setup. The forecasting model, data pipeline, and application are planned and are not yet implemented.
+**Status:** First backend increment: public weather ingestion, a versioned challenge-rule baseline, 48-hour JSON output, and a historical dataset export. Machine-learning training and the UI remain to be implemented. Baseline probabilities are `null`; independent historical operating labels are still needed for model evaluation.
 
 ## Objective
 
@@ -52,7 +52,31 @@ git clone https://github.com/abecic-pr/fra-operations-forecast.git
 cd fra-operations-forecast
 ```
 
-Application setup, dependencies, and run commands will be added when implementation begins.
+Python 3.11 or newer is required. The current backend uses only the standard library.
+
+```bash
+# Current observations and 48-hour forecast; requires internet access.
+python3 -m fra_forecast refresh --live-only
+
+# Also collect 14 days of observations and seven archived daily forecast runs.
+python3 -m fra_forecast refresh
+
+# Run focused offline checks.
+python3 -m unittest discover -s tests -v
+```
+
+Outputs are written to the ignored `data/` directory. The teammate can consume
+`data/forecast.json`; its contract is documented in [docs/backend-data.md](docs/backend-data.md).
+This increment writes files and does not yet expose an HTTP API.
+
+Supply independently verified labels with `--labels path/to/operations.csv`,
+using the header in [examples/operations-labels.csv](examples/operations-labels.csv).
+The template intentionally contains no invented records. Historical forecast
+publication times currently use a clearly marked four-hour estimate, so this
+dataset is not yet evidence of leakage-free model accuracy.
+
+The six-hour hackathon constraint and division of work are recorded in
+[AGENTS.md](AGENTS.md). The teammate owns UI; backend work prioritizes runnable increments.
 
 ## Project context
 
