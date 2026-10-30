@@ -62,7 +62,7 @@ export function ParallelForecast({view,traffic}:{view:WindView;traffic:TrafficCo
   const max=Math.ceil(Math.max(20,peak??0)/5)*5,x=(t:number)=>34+(t-start)/(end-start)*300,y=(v:number)=>142-v/max*114;
   return <section className="glass parallel-forecast" aria-label={`Tailwind forecast for ${traffic.runway}`}>
     <h2>Tailwind forecast · {traffic.runway}</h2>
-    <p>{next?`${next.operation==='landing'?'Landing':'Departure'} limit selected for ${next.number}`:'Next movement unknown · both limits shown'}</p>
+    <p>{next?`${next.operation==='landing'?'Landing':'Departure'} limit selected for ${next.number}`:'Awaiting runway assignment · both limits shown'}</p>
     <div className="segmented" aria-label="Tailwind forecast horizon">{[12,24,48].map(h=><button key={h} aria-pressed={view.horizon===h} className={view.horizon===h?'is-active':''} onClick={()=>view.onHorizon(h)}>{h}h</button>)}</div>
     <div className="parallel-forecast-summary">
       <strong>{summary}</strong>

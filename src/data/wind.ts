@@ -5,6 +5,7 @@ export type WindFrame = {
   eastKt: number | null;
   northKt: number | null;
   gustKt: number | null;
+  gustFromDegTrue?: number;
   tailwindKt: number | null;
   crosswindKt: number | null;
   gustCrosswindKt: number | null;
@@ -25,6 +26,8 @@ export type WindDataset = {
   observations?: MeasuredWind[];
   issuedForecasts?: IssuedForecast[];
   currentObservation?: WindFrame;
+  currentObservationSource?: string;
+  currentObservationNote?: string;
   operations?: {direction:'07'|'25'|null; observedAt:string|null; since:string|null; source:string};
   nextDirectionChange?: {status:string; earliest:string|null; latest:string|null};
   rawMetar?: string;
@@ -62,8 +65,8 @@ export function runwayPresentation(frame: WindFrame, unavailable = false) {
   const tone: RunwayTone = unavailable ? 'unknown' : exceeds || frame.weatherState === 'not_usable' ? 'red'
     : near ? 'yellow' : frame.weatherState === 'usable' ? 'green' : 'unknown';
   return { tone, color: {green:'#69df9b',yellow:'#f3d36d',red:'#ff756e',unknown:'#a8b3bd'}[tone],
-    label: {green:'Within wind limits',yellow:'Approaching wind limits',red:'Wind limits exceeded',unknown:unavailable?'Connection lost':'Weather state unknown'}[tone],
-    detail: 'Wind suitability only. Yellow: tailwind ≥11 kt or crosswind ≥36 kt. Red: tailwind ≥15 kt or crosswind >40 kt. Missing data remains unknown.' };
+    label: {green:'Within wind limits',yellow:'Approaching wind limits',red:'Wind limits exceeded',unknown:unavailable?'Refresh required':frame.eastKt===null||frame.northKt===null?'Wind report unavailable':frame.gustKt===null?'Gusts not reported':frame.gustCrosswindKt===null?'Gust direction missing':'Wind check incomplete'}[tone],
+    detail: 'Wind suitability only. Yellow: tailwind ≥11 kt or crosswind ≥36 kt. Red: tailwind ≥15 kt or crosswind >40 kt. Incomplete wind data requires further checks.' };
 }
 export function demoDataset(now = new Date()): WindDataset {
   const start = now.getTime();
@@ -158,9 +161,29 @@ export function backendWindProvider(url = '/api/forecast'): WindProvider {
       const payload=await verification.json();
       dataset.observations=screenedMeasurements(payload.observations);
       dataset.issuedForecasts=screenedIssuedForecasts(payload.issued_forecasts);
+      applyVerifiedCurrent(dataset,payload.latest_complete_observation);
     }
     return dataset;
   } };
+}
+
+/** Prefer a complete, independently screened observation; never combine stations or times. */
+export function applyVerifiedCurrent(dataset:WindDataset,input:unknown,now=Date.now()) {
+  if(!input||typeof input!=='object')return;
+  const row=input as Record<string,unknown>;
+  const eligible=screenedMeasurements([row],now)[0];
+  const numeric=(v:unknown):v is number=>typeof v==='number'&&Number.isFinite(v);
+  if(!eligible||!['2','3'].includes(String(row.gust_quality_code))||!/^https:\/\/opendata\.dwd\.de\/climate_environment\/CDC\/observations_germany\/climate\/10_minutes\/extreme_wind\//.test(String(row.gust_source_url))||!String(row.gust_source_url).includes('_01420_')||![row.source_sha256,row.gust_source_sha256].every(v=>/^[a-f0-9]{64}$/.test(String(v)))||!numeric(row.wind_speed_kt)||row.wind_speed_kt<0||row.wind_speed_kt>200||!numeric(row.wind_from_deg_true)||row.wind_from_deg_true<0||row.wind_from_deg_true>360||!numeric(row.wind_gust_kt)||row.wind_gust_kt<0||row.wind_gust_kt>200||!numeric(row.gust_from_deg_true)||row.gust_from_deg_true<0||row.gust_from_deg_true>360)return;
+  const at=Date.parse(eligible.validTime),received=Date.parse(String(row.gust_received_at));
+  if(now-at>90*60000||!Number.isFinite(received)||received<at||received>now)return;
+  const current=dataset.currentObservation;
+  if(current&&runwayPresentation(current).tone!=='unknown')return;
+  const vector=vectorFromWind(row.wind_speed_kt,row.wind_from_deg_true),components=components18(vector.eastKt,vector.northKt,row.wind_gust_kt),gustVector=vectorFromWind(row.wind_gust_kt,row.gust_from_deg_true);
+  const gustCrosswindKt=Math.abs(gustVector.eastKt);
+  const weatherState=components.tailwindKt!>=15||components.crosswindKt!>40||gustCrosswindKt>40?'not_usable':'usable';
+  dataset.currentObservation={validTime:eligible.validTime,...vector,gustKt:row.wind_gust_kt,gustFromDegTrue:row.gust_from_deg_true,...components,gustCrosswindKt,weatherState,probability:null};
+  dataset.currentObservationSource='DWD 01420 · checked provisional';
+  dataset.currentObservationNote=`Complete wind and gust observation at ${formatUtc(eligible.validTime)} UTC.${current?` Latest airport report ${formatUtc(current.validTime)} UTC: ${runwayPresentation(current).label.toLowerCase()}.`:''}`;
 }
 
 export type WindView = {
@@ -231,7 +254,8 @@ export function runwayComponents(frame:WindFrame|undefined, heading:number|null)
   const rad=heading*Math.PI/180,along=frame.eastKt*Math.sin(rad)+frame.northKt*Math.cos(rad);
   const crosswind=Math.abs(frame.eastKt*Math.cos(rad)-frame.northKt*Math.sin(rad));
   const speed=Math.hypot(frame.eastKt,frame.northKt);
-  return {tailwind:Math.max(0,along),headwind:Math.max(0,-along),crosswind,gustCrosswind:frame.gustKt===null?null:speed===0?0:crosswind/speed*frame.gustKt};
+  const gustVector=frame.gustKt!==null&&frame.gustFromDegTrue!==undefined?vectorFromWind(frame.gustKt,frame.gustFromDegTrue):null;
+  return {tailwind:Math.max(0,along),headwind:Math.max(0,-along),crosswind,gustCrosswind:gustVector?Math.abs(gustVector.eastKt*Math.cos(rad)-gustVector.northKt*Math.sin(rad)):frame.gustKt===null?null:speed===0?0:crosswind/speed*frame.gustKt};
 }
 export function parallelTailwindForecast(dataset:WindDataset,horizon:number,runwayEnd?:string|null) {
   const start=Date.parse(dataset.generatedAt),end=start+horizon*3600000;
