@@ -12,7 +12,7 @@ function useRunways(){
 const isArrival=(ref:string)=>ref==='07L/25R'||ref==='07R/25L';
 export function DirectionBadge({view}:{view:WindView}){
   const direction=airportDirection(view.dataset,view.hour,view.connectionError);
-  return <div className="airport-direction-copy"><h2>Airport direction</h2><p><strong>{direction.label}</strong>{direction.direction&&<span> {direction.direction} · {direction.heading}°T</span>}</p><small>{direction.basis}{direction.time?` · ${formatUtc(direction.time)} UTC`:''}</small></div>;
+  return <div className="airport-direction-copy"><h2>Airport direction</h2><p><strong>{direction.label}</strong>{direction.direction&&<span> {direction.direction} · {direction.heading}°T</span>}</p><small>{view.dataset.mode==='demo'?'Simulated configuration':direction.basis}{direction.time?` · ${formatUtc(direction.time)} UTC`:''}</small></div>;
 }
 export function AirportDirectionLayer({map,view}:{map:L.Map|null;view:WindView}){
   const runways=useRunways(),direction=airportDirection(view.dataset,view.hour,view.connectionError),tone=runwayPresentation(frameAt(view.dataset,view.hour),view.connectionError);

@@ -1,6 +1,6 @@
 import {useEffect,useMemo,useState} from 'react';
 import L from 'leaflet';
-import {airportDirection,formatUtc,runwayComponents,type WindView,type WindFrame} from './data/wind';
+import {airportDirection,formatUtc,parallelTailwindForecast,runwayComponents,type WindView,type WindFrame} from './data/wind';
 import {adaptTraffic,demoTraffic,nextMovement,parallelRunways,type ParallelRunway,type TrafficBoard} from './data/traffic';
 import {frankfurtTime} from './data/departures';
 const flightDate=(at:string)=>new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Berlin',weekday:'short',day:'2-digit',month:'short'}).format(new Date(at));
@@ -55,8 +55,27 @@ export function AircraftLayer({map,traffic}:{map:L.Map|null;traffic:TrafficContr
   }return()=>{group.remove();};},[map,traffic.board,traffic.runway,traffic.now,traffic.preview]);return null;
 }
 export function ParallelForecast({view,traffic}:{view:WindView;traffic:TrafficControl}){
-  const next=nextMovement(traffic.board,traffic.runway,traffic.now),limit=next?(next.operation==='landing'?10:15):null,start=Date.parse(view.dataset.generatedAt),end=start+view.horizon*3600000;
-  const points=view.dataset.frames.filter(f=>Date.parse(f.validTime)<=end).map(f=>({time:Date.parse(f.validTime),tail:runwayComponents(f,next?.runwayEnd?.startsWith('07')?70:next?.runwayEnd?.startsWith('25')?250:f.operatingDirection==='07'?70:f.operatingDirection==='25'?250:null).tailwind}));
-  const max=Math.max(20,...points.map(p=>p.tail??0)),x=(t:number)=>30+(t-start)/(end-start)*290,y=(v:number)=>180-v/max*145;
-  return <section className="glass parallel-forecast"><h2>Tailwind forecast · {traffic.runway}</h2><p>{next?`${next.operation==='landing'?'Landing':'Departure'} limit selected for ${next.number}`:'Awaiting runway assignment · both limits shown'}</p><div className="segmented">{[12,24,48].map(h=><button key={h} className={view.horizon===h?'is-active':''} aria-pressed={view.horizon===h} onClick={()=>view.onHorizon(h)}>{h}h</button>)}</div><svg viewBox="0 0 350 215" role="img" aria-label="Parallel runway tailwind forecast and operation limits">{(limit?[limit]:[10,15]).map(l=><g key={l}><line x1="30" x2="320" y1={y(l)} y2={y(l)} stroke={l===10?'#63d6ff':'#ffb688'} strokeDasharray="4 4"/><text x="320" y={y(l)-6} textAnchor="end">{l===10?'Landing':'Departure'} {l} kt</text></g>)}{points.map((p,i)=>{const a=points[i-1];return a&&a.tail!==null&&p.tail!==null&&p.time-a.time<=3600000?<path key={p.time} d={`M${x(a.time)} ${y(a.tail)}L${x(p.time)} ${y(p.tail)}`} stroke="#45a9ff" fill="none" strokeWidth="2.5"/>:null;})}<line x1="30" x2="320" y1="180" y2="180" stroke="#ffffff60"/><text x="30" y="204">{formatUtc(view.dataset.generatedAt)} UTC</text><text x="320" y="204" textAnchor="end">+{view.horizon}h</text></svg><small>Hourly samples · direction from backend forecast · kt</small></section>;
+  const next=nextMovement(traffic.board,traffic.runway,traffic.now),limit=next?(next.operation==='landing'?10:15):null;
+  const {start,end,points,count,complete,peak}=parallelTailwindForecast(view.dataset,view.horizon,next?.runwayEnd);
+  const value=peak!==null&&peak>0&&peak<.1?'<0.1':peak?.toFixed(1);
+  const summary=view.connectionError?'Connection lost':peak===null?'Forecast unavailable':complete&&peak===0?'0 kt tailwind forecast':`Peak ${complete?'':'available '}tailwind ${value} kt`;
+  const max=Math.ceil(Math.max(20,peak??0)/5)*5,x=(t:number)=>34+(t-start)/(end-start)*300,y=(v:number)=>142-v/max*114;
+  return <section className="glass parallel-forecast" aria-label={`Tailwind forecast for ${traffic.runway}`}>
+    <h2>Tailwind forecast · {traffic.runway}</h2>
+    <p>{next?`${next.operation==='landing'?'Landing':'Departure'} limit selected for ${next.number}`:'Awaiting runway assignment · both limits shown'}</p>
+    <div className="segmented" aria-label="Tailwind forecast horizon">{[12,24,48].map(h=><button key={h} aria-pressed={view.horizon===h} className={view.horizon===h?'is-active':''} onClick={()=>view.onHorizon(h)}>{h}h</button>)}</div>
+    <div className="parallel-forecast-summary">
+      <strong>{summary}</strong>
+      <span>{view.connectionError?'Last saved forecast shown.':peak===null?'Wind or runway direction is unavailable in this window.':complete&&peak===0?`All ${count} hourly samples are 0 kt. Headwind is shown as zero.`:!complete?'Some hourly values are missing; gaps are left open.':'Maximum across the hourly forecast samples.'}</span>
+    </div>
+    <svg viewBox="0 0 350 180" role="img" aria-label={`${summary}. ${count} of ${view.horizon} hourly samples available. Tailwind in knots; times in UTC.`}>
+      <text x="6" y="13">kt</text>
+      {[0,max/2,max].map(v=><g key={v}><line x1="34" x2="334" y1={y(v)} y2={y(v)} className="parallel-forecast-grid"/><text x="25" y={y(v)+4} textAnchor="end">{v}</text></g>)}
+      {(limit?[limit]:[10,15]).map(l=><g key={l}><line x1="34" x2="334" y1={y(l)} y2={y(l)} stroke={l===10?'#63d6ff':'#ffb688'} strokeDasharray="4 4"/><text x="334" y={y(l)-7} textAnchor="end">{l===10?'Landing':'Departure'} limit {l} kt</text></g>)}
+      {points.map((p,i)=>{const a=points[i-1];return a&&a.tail!==null&&p.tail!==null&&p.time-a.time<=3600000?<path key={p.time} d={`M${x(a.time)} ${y(a.tail)}L${x(p.time)} ${y(p.tail)}`} className="parallel-forecast-line"/>:null;})}
+      {points.filter(p=>p.tail!==null).map(p=><circle key={p.time} cx={x(p.time)} cy={y(p.tail!)} r="2.6" className="parallel-forecast-point"><title>{formatUtc(new Date(p.time).toISOString())} UTC · {p.tail!.toFixed(1)} kt tailwind</title></circle>)}
+      {[0,.5,1].map(f=><text key={f} x={x(start+f*(end-start))} y="167" textAnchor={f===0?'start':f===1?'end':'middle'}>{formatUtc(new Date(start+f*(end-start)).toISOString())}{f===0?' UTC':f===1?` (+${view.horizon}h)`:''}</text>)}
+    </svg>
+    <div className="parallel-forecast-footer"><span><i aria-hidden="true"/>Hourly forecast</span><span>{count}/{view.horizon} samples</span></div>
+  </section>;
 }

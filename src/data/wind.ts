@@ -257,6 +257,15 @@ export function runwayComponents(frame:WindFrame|undefined, heading:number|null)
   const gustVector=frame.gustKt!==null&&frame.gustFromDegTrue!==undefined?vectorFromWind(frame.gustKt,frame.gustFromDegTrue):null;
   return {tailwind:Math.max(0,along),headwind:Math.max(0,-along),crosswind,gustCrosswind:gustVector?Math.abs(gustVector.eastKt*Math.cos(rad)-gustVector.northKt*Math.sin(rad)):frame.gustKt===null?null:speed===0?0:crosswind/speed*frame.gustKt};
 }
+export function parallelTailwindForecast(dataset:WindDataset,horizon:number,runwayEnd?:string|null) {
+  const start=Date.parse(dataset.generatedAt),end=start+horizon*3600000;
+  const points=dataset.frames.filter(f=>Date.parse(f.validTime)>start&&Date.parse(f.validTime)<=end).map(frame=>({
+    time:Date.parse(frame.validTime),
+    tail:runwayComponents(frame,runwayEnd?.startsWith('07')?70:runwayEnd?.startsWith('25')?250:frame.operatingDirection==='07'?70:frame.operatingDirection==='25'?250:null).tailwind,
+  }));
+  const values=points.flatMap(p=>p.tail===null?[]:[p.tail]);
+  return {start,end,points,count:values.length,complete:values.length===horizon,peak:values.length?Math.max(...values):null};
+}
 export function departureExceedance(frame:WindFrame) {
   return frame.tailwindKt!==null&&frame.tailwindKt>=DEPARTURE_LIMIT_KT?'Tailwind ≥15 kt':
     frame.crosswindKt!==null&&frame.crosswindKt>CROSSWIND_LIMIT_KT?'Crosswind >40 kt':

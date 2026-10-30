@@ -22,7 +22,7 @@ export function directionRows(dataset:WindDataset,horizon:number,now:number,disc
   return {at,hour,current,wind:windBearing(frame),flow,runways:runwayConfiguration(flow.direction),status18:frame?runwayPresentation(frame,disconnected):null,change:false};
  };
  const current=make(dataset.currentObservation,0,now,true);
- const future=dataset.frames.filter(f=>Date.parse(f.validTime)>now&&Date.parse(f.validTime)<=end).map(f=>make(f,(Date.parse(f.validTime)-origin)/3600000,Date.parse(f.validTime),false));
+ const future=dataset.frames.filter(f=>Date.parse(f.validTime)>Math.max(now,origin)&&Date.parse(f.validTime)<=end).map(f=>make(f,(Date.parse(f.validTime)-origin)/3600000,Date.parse(f.validTime),false));
  future.forEach((row,i)=>{const before=i?future[i-1]:current;row.change=Boolean(row.flow.direction&&before.flow.direction&&row.flow.direction!==before.flow.direction&&(i?row.at-before.at<=66*60000:row.at-now<=66*60000));});
  return [current,...future];
 }

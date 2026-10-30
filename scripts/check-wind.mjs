@@ -217,3 +217,25 @@ assert.equal(dOutlook.directionRows(switchData,6,trafficNow+2*3600000).filter(r=
 const delayedSwitch={...switchData,frames:switchData.frames.map(f=>({...f,operatingDirection:'07'}))};
 assert.equal(dOutlook.directionRows(delayedSwitch,12,trafficNow).find(r=>r.hour===3).flow.direction,'07','Wind change alone must not bypass the backend persistence/airport direction');
 console.log('Direction outlook passed: all-runway switches, fixed southbound 18, wind FROM bearings, calm/missing data, horizons and shared airport selection.');
+// A complete zero forecast must stay distinct from partial or absent weather/direction.
+const headwindForecast={...demo,frames:demo.frames.map(f=>({...f,...w.vectorFromWind(8,70),operatingDirection:'07'}))};
+for(const horizon of [12,24,48]){
+  const outlook=w.parallelTailwindForecast(headwindForecast,horizon);
+  assert.equal(outlook.count,horizon);
+  assert.equal(outlook.complete,true);
+  assert.equal(outlook.peak,0);
+}
+close(w.parallelTailwindForecast(headwindForecast,12,'25R').peak,8);
+assert.equal(w.parallelTailwindForecast({...headwindForecast,generatedAt:'2026-10-30T10:26:00Z'},12).count,12);
+const partial=w.parallelTailwindForecast({...headwindForecast,frames:headwindForecast.frames.map((f,i)=>i===2?{...f,eastKt:null}:f)},12);
+assert.equal(partial.count,11);
+assert.equal(partial.complete,false);
+assert.equal(partial.points[1].tail,null);
+assert.equal(w.parallelTailwindForecast({...headwindForecast,frames:headwindForecast.frames.filter((_,i)=>i!==2)},12).complete,false);
+const noDirection={...headwindForecast,frames:headwindForecast.frames.map(f=>({...f,operatingDirection:null}))};
+assert.equal(w.parallelTailwindForecast(noDirection,12).peak,null);
+assert.equal(w.parallelTailwindForecast(noDirection,12,'07L').complete,true);
+assert.equal(w.parallelTailwindForecast({...headwindForecast,frames:[]},12).peak,null);
+console.log('Parallel forecast checks passed: zero/headwind, assigned direction, horizons and missing coverage.');
+
+assert.equal(dOutlook.directionRows(switchData,12,trafficNow-500).length,13,'A newly activated example must not duplicate its time-zero observation as a forecast');
