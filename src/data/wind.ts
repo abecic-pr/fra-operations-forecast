@@ -250,7 +250,7 @@ export function operationalOutlook(dataset:WindDataset, now=Date.now()) {
 
 /** Aircraft movement, never wind-from direction. No direction is inferred from wind. */
 export function airportDirection(dataset:WindDataset, hour:number, unavailable=false) {
-  const frame=frameAt(dataset,hour),reported=hour===0;
+  const frame=frameAt({...dataset,planningFrames:undefined},hour),reported=hour===0;
   const direction=unavailable?null:reported?dataset.operations?.direction??null:frame.operatingDirection??null;
   const learned=!reported&&frame.directionBasis==='independently_trained_od_model';
   return {direction,heading:direction==='07'?70:direction==='25'?250:null,

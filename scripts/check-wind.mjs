@@ -169,3 +169,8 @@ assert.equal(p.centreCandidate({...scenario.dataset,planningFrames:scenario.data
 const hourly={...scenario.dataset,planningFrames:undefined,frames:scenario.dataset.frames.map(f=>({...f,resolutionMinutes:60}))};
 assert.equal(p.forecastWindows(hourly,trafficNow).windows.find(x=>x.kind==='restricted').end,trafficNow+180*60000);
 console.log('Restriction planning checks passed: 4 kt caution, 30-minute sampled window, assignment screening, stale boards, gaps and hourly precision.');
+
+const directionConflict={...scenario.dataset,frames:scenario.dataset.frames.map(f=>({...f,operatingDirection:'25',directionBasis:'independently_trained_od_model'}))};
+assert.equal(w.airportDirection(directionConflict,2).direction,'25','Fine raw weather must not replace the learned airport direction');
+assert.equal(p.centreCandidate(directionConflict,trafficNow+130*60000),null,'Do not propose conflicting forecast runway directions');
+assert.equal(w.adaptBackendSnapshot(payload).frames[0].resolutionMinutes,60,'Hourly published cadence remains hourly');

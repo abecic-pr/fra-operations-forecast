@@ -32,6 +32,8 @@ export function centreCandidate(dataset:WindDataset,at:number){
   if(!next||!previous||Date.parse(next.validTime)-Date.parse(previous.validTime)>Math.min(next.resolutionMinutes??60,previous.resolutionMinutes??60)*60000*1.1)return null;
   const samples=next===previous?[next]:[previous,next],od=next.operatingDirection;
   if(!od||samples.some(f=>f.operatingDirection!==od||f.weatherState==='unknown'))return null;
+  const hnext=dataset.frames.find(f=>Date.parse(f.validTime)>=at),hprevious=dataset.frames.filter(f=>Date.parse(f.validTime)<=at).at(-1);
+  if(!hnext||!hprevious||hnext.operatingDirection!==od||hprevious.operatingDirection!==od||Date.parse(hnext.validTime)-Date.parse(hprevious.validTime)>66*60000)return null;
   const suitable=samples.every(f=>{const c=runwayComponents(f,od==='07'?70:250);return c.tailwind!==null&&c.tailwind<11&&c.crosswind!==null&&c.crosswind<36&&c.gustCrosswind!==null&&c.gustCrosswind<36;});
   return suitable?od==='07'?'07C':'25C':null;
 }
