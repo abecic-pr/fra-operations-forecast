@@ -58,9 +58,11 @@ def make_handler(data_dir, *, origin_scheme="http", refresh_after_seconds=None):
         def do_GET(self):
             if urlsplit(self.path).path == "/api/forecast" and refresh_after_seconds is not None:
                 snapshot = data_dir / "forecast.json"
-                if (not snapshot.exists() or time.time() - snapshot.stat().st_mtime > refresh_after_seconds) and refresh_lock.acquire(blocking=False):
+                if (not snapshot.exists() or time.time() - snapshot.stat().st_mtime > refresh_after_seconds) and refresh_lock.acquire(blocking=not snapshot.exists()):
                     try:
-                        refresh(data_dir, live_only=True, history_days=1)
+                        # Cold-start requests wait for the first snapshot, then reuse it.
+                        if not snapshot.exists() or time.time() - snapshot.stat().st_mtime > refresh_after_seconds:
+                            refresh(data_dir, live_only=True, history_days=1)
                     except (OSError, ValueError, KeyError) as exc:
                         self.log_error("Automatic refresh failed: %s", exc)
                     finally:

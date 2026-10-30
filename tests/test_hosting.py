@@ -1,3 +1,4 @@
+from concurrent.futures import ThreadPoolExecutor, TimeoutError
 from http.client import HTTPConnection
 from http.server import ThreadingHTTPServer
 import json
@@ -13,6 +14,54 @@ from scripts.prepare_deployment import prepare
 
 
 class HostingTests(unittest.TestCase):
+    def test_concurrent_cold_start_requests_share_first_snapshot(self):
+        with tempfile.TemporaryDirectory() as folder:
+            started, release, second_read = threading.Event(), threading.Event(), threading.Event()
+            server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(folder, refresh_after_seconds=600))
+            worker = threading.Thread(target=server.serve_forever, daemon=True)
+            worker.start()
+
+            def refresh(root, **kwargs):
+                started.set()
+                if not release.wait(5):
+                    raise RuntimeError("Test refresh was not released")
+                (root / "forecast.json").write_text('{"forecast": [], "source": "test fixture"}')
+
+            def request():
+                connection = HTTPConnection("127.0.0.1", server.server_port, timeout=5)
+                try:
+                    connection.request("GET", "/api/forecast")
+                    response = connection.getresponse()
+                    return response.status, json.loads(response.read())
+                finally:
+                    connection.close()
+
+            exists = Path.exists
+            def observed_exists(path):
+                if started.is_set() and path.name == "forecast.json":
+                    second_read.set()
+                return exists(path)
+
+            try:
+                with patch("fra_forecast.server.refresh", side_effect=refresh) as fetch, patch.object(Path, "exists", observed_exists), ThreadPoolExecutor(2) as pool:
+                    first = pool.submit(request)
+                    try:
+                        self.assertTrue(started.wait(2))
+                        second = pool.submit(request)
+                        self.assertTrue(second_read.wait(2))
+                        with self.assertRaises(TimeoutError):
+                            second.result(timeout=0.1)
+                    finally:
+                        release.set()
+                    for result in (first.result(), second.result()):
+                        self.assertEqual(result, (200, {"forecast": [], "source": "test fixture"}))
+                    fetch.assert_called_once()
+            finally:
+                release.set()
+                server.shutdown()
+                server.server_close()
+                worker.join()
+
     def test_git_deployment_starts_without_packaged_data_and_fetches_on_request(self):
         entry = (Path(__file__).resolve().parent.parent / "api" / "index.py").read_text()
         with tempfile.TemporaryDirectory() as folder:
