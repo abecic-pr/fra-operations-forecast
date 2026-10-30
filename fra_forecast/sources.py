@@ -91,12 +91,18 @@ class SourceClient:
 
 
 def parse_dwd_zip(body, start, end):
+    first_key = start.strftime("%Y%m%d%H%M")
+    last_key = (end + timedelta(minutes=1)).strftime("%Y%m%d%H%M")
     with zipfile.ZipFile(io.BytesIO(body)) as archive:
         filename = next(name for name in archive.namelist() if name.startswith("produkt_"))
         reader = csv.DictReader(io.StringIO(archive.read(filename).decode("utf-8-sig")), delimiter=";")
         rows = []
         for raw in reader:
             row = {k.strip(): v.strip() for k, v in raw.items() if k and v is not None}
+            if not first_key <= row.get("MESS_DATUM", "") < last_key:
+                continue
+            if number(row.get("STATIONS_ID")) != 1420:
+                continue
             at = datetime.strptime(row["MESS_DATUM"], "%Y%m%d%H%M").replace(tzinfo=UTC)
             if not start <= at < end:
                 continue

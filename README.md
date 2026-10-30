@@ -4,7 +4,7 @@ Forecasting runway operating direction and Runway 18 weather suitability at Fran
 
 FRA Operations Forecast is a research prototype for the **FraAlliance challenge at AI Week Frankfurt 2026**. The project aims to turn weather observations and forecasts into a probabilistic outlook for airport operations over the next 48 hours.
 
-**Status:** Public weather ingestion, a versioned challenge-rule baseline, 48-hour JSON output, a historical dataset export, and a local JSON API. The Runway 18 frontend provides Dashboard and Map modes with an animated wind layer, timeline playback and shared dynamic demo data. Live UI integration remains pending; the temporary data-preview UI has been removed. Machine-learning training remains to be implemented. Baseline probabilities are `null`; independent historical operating labels are still needed for model evaluation.
+**Status:** Public weather ingestion, a versioned challenge-rule baseline, 48-hour JSON output, a historical dataset export, and a local JSON API. The Runway 18 frontend provides Dashboard and Map modes with live airport wind, a measured-versus-forecast chart, timeline playback and an animated wind layer; the temporary data-preview UI has been removed. Machine-learning training remains to be implemented. Baseline probabilities are `null`; independent historical operating labels are still needed for model evaluation.
 
 ## Run the frontend locally
 
@@ -12,14 +12,24 @@ Use Node.js 22.12+ or 20.19+.
 
 ```sh
 npm ci
+# In a separate terminal, first start the Python data API below.
 npm run dev
 ```
 
 Open http://127.0.0.1:5173/ or the map at http://127.0.0.1:5173/#map.
-The frontend currently uses explicitly labeled synthetic wind data. It does not
-request the backend or refresh live providers. Only Runway 18 is highlighted.
-The color layer shows total wind speed; the chart shows departure tailwind.
-Map, chart and summary share the same forecast time.
+The frontend now uses the local data API. Start it in a separate terminal:
+
+```sh
+python3 -m fra_forecast refresh --live-only --history-days 1 --archive-days 0
+python3 -m fra_forecast serve
+```
+
+Only Runway 18 is highlighted. The blue chart line is forecast tailwind and the
+green line is source-screened DWD measured tailwind, labeled provisional. The
+clock marker shows actual UTC time independently of forecast playback. The UI
+reads saved data every 30 seconds and requests fresh sources every 10 minutes
+while visible. Manual refresh is also available. Never show an accuracy score
+until an observation matches a forecast archived before that observation time.
 
 ```sh
 npm run check:wind
@@ -117,3 +127,11 @@ The six-hour hackathon constraint and division of work are recorded in
 Built for **AI Week Frankfurt, 30 October 2026**, based on the FraAlliance brief *Frankfurt Airport Operating Direction Forecast*.
 
 The prototype is intended for research and demonstration. Its predictions are not operational air traffic control instructions.
+
+### AI Weather Bot
+
+The dashboard includes a project assistant with data lookups, forecast charts and an interactive airport map. It is intentionally **disconnected from OpenAI** for Antonio's handoff. Use Preview charts & map to review real saved data without a key.
+
+To enable AI answers, add `OPENAI_API_KEY` to the ignored root `.env` file (see `.env.example`). The default backend model is `gpt-5-mini`; set `OPENAI_MODEL` to change it. Keep the key on the Python backend, never in VITE_ variables. The status refreshes automatically; no key is committed. A real OpenAI completion still needs account/model access and has not been tested without a key.
+
+See [AI Weather Bot setup and data contract](docs/ai-weather-bot.md) for source scope, limits and the `/api/chat` endpoints. The model reasons internally and returns a short explanation with sources. Weather suitability and official runway closure remain distinct.

@@ -4,18 +4,19 @@ import type { FeatureCollection, Geometry } from 'geojson';
 import Icon from './Icon';
 import WindForecast from './WindForecast';
 import WindLayer from './WindLayer';
-import { formatUtc, frameAt, windFromVector, type WindView } from './data/wind';
+import { formatUtc, frameAt, runwayPresentation, windFromVector, type WindView } from './data/wind';
 import 'leaflet/dist/leaflet.css';
 
 type AirportProperties = { aeroway: string; ref?: string; name?: string; osmUrl: string };
 const airportBounds: L.LatLngBoundsExpression = [[50.010,8.505],[50.055,8.605]];
 function fitRunway(map: L.Map, bounds: L.LatLngBoundsExpression = airportBounds) {
   const size=map.getSize(), compact=size.x<=900;
-  map.fitBounds(bounds,{paddingTopLeft:[compact?70:100,90],paddingBottomRight:[compact?40:Math.min(540,size.x*.4),compact?size.y*.56:100],maxZoom:15,animate:false});
+  map.fitBounds(bounds,{paddingTopLeft:[compact?70:100,90],paddingBottomRight:[compact?40:Math.min(540,size.x*.4),compact?size.y*.56:100],maxZoom:15,animate:!window.matchMedia('(prefers-reduced-motion: reduce)').matches,duration:.45});
 }
 export default function AirportMap({onBack,...view}:WindView&{onBack:()=>void}) {
   const {dataset,hour}=view;
   const frame=useMemo(()=>frameAt(dataset,hour),[dataset,hour]);
+  const presentation=runwayPresentation(frame,view.connectionError);
   const container=useRef<HTMLDivElement>(null), map=useRef<L.Map|null>(null);
   const [mapInstance,setMapInstance]=useState<L.Map|null>(null);
   const runway=useRef<L.GeoJSON|null>(null), boundary=useRef<L.GeoJSON|null>(null);
@@ -32,7 +33,7 @@ export default function AirportMap({onBack,...view}:WindView&{onBack:()=>void}) 
     fitRunway(instance);setMapInstance(instance);
     fetch('/data/frankfurt-airport.geojson',{signal:controller.signal}).then(response=>{if(!response.ok)throw new Error('Airport geometry unavailable');return response.json();}).then((data:FeatureCollection<Geometry,AirportProperties>)=>{
       if(controller.signal.aborted)return;
-      runway.current=L.geoJSON(data,{filter:f=>f.properties.aeroway==='runway'&&f.properties.ref==='18',style:{color:'#f1f79a',weight:12,opacity:.85},onEachFeature:(_,layer)=>layer.bindTooltip('18',{permanent:true,direction:'center',className:'runway-label is-selected'})}).addTo(instance);
+      runway.current=L.geoJSON(data,{filter:f=>f.properties.aeroway==='runway'&&f.properties.ref==='18',style:{color:'#a8b3bd',weight:12,opacity:.9,className:'runway-highlight'},onEachFeature:(_,layer)=>layer.bindTooltip('18',{permanent:true,direction:'center',className:'runway-label is-selected'})}).addTo(instance);
       boundary.current=L.geoJSON(data,{filter:f=>f.properties.aeroway==='aerodrome',style:{color:'#f5f5e0',weight:1.5,dashArray:'5 7',fillOpacity:.02}});
       if(runway.current.getBounds().isValid())fitRunway(instance,runway.current.getBounds().pad(.35));
       setStatus('ready');
@@ -49,16 +50,24 @@ export default function AirportMap({onBack,...view}:WindView&{onBack:()=>void}) 
   const speed=frame.eastKt===null||frame.northKt===null?null:Math.hypot(frame.eastKt,frame.northKt);
   const from=speed===null?null:windFromVector(frame.eastKt!,frame.northKt!);
   const next=frame.weatherState==='unknown'?undefined:dataset.frames.find(point=>Date.parse(point.validTime)>Date.parse(frame.validTime)&&point.weatherState!==frame.weatherState&&point.weatherState!=='unknown');
-  const limited=frame.weatherState==='not_usable';
-  return <main className={`map-experience ${basemap}`}>
+  useEffect(()=>{
+    if(status!=='ready'||!runway.current)return;
+    runway.current.setStyle({color:presentation.color});
+    runway.current.eachLayer(layer=>{const tooltip=layer.getTooltip()?.getElement();if(tooltip)tooltip.style.setProperty('--runway-color',presentation.color);});
+  },[status,presentation.color,showRunway]);
+  return <main className={`map-experience ${basemap}`} data-runway-tone={presentation.tone}>
     <div ref={container} className="map-canvas" aria-label="Interactive wind map of Frankfurt Airport Runway 18"/>
     <WindLayer map={mapInstance} dataset={dataset} frame={frame} enabled={windEnabled} animated={animated}/>
     <div className="map-vignette"/>
     <button className="glass back-button" onClick={onBack}><Icon name="back" size={19}/>Dashboard</button>
     <div className="map-tools glass" aria-label="Map controls"><button aria-label="Zoom in" onClick={()=>map.current?.zoomIn()}><Icon name="plus"/></button><button aria-label="Zoom out" onClick={()=>map.current?.zoomOut()}><Icon name="minus"/></button><span className="tool-divider"/><button aria-label="Show Runway 18" onClick={()=>{if(map.current)fitRunway(map.current,runway.current?.getBounds().pad(.35));}}><Icon name="locate"/></button><span className="tool-divider"/><button aria-label="Wind layer" aria-pressed={windEnabled} className={windEnabled?'tool-active':''} onClick={()=>setWindEnabled(!windEnabled)}><Icon name="wind"/></button><button aria-label="Map layers" aria-expanded={showLayers} aria-controls="layer-options" onClick={()=>setShowLayers(!showLayers)}><Icon name="layers"/></button></div>
-    {showLayers&&<section id="layer-options" className="glass layer-popover"><div className="popover-heading"><h2>Map layers</h2><button aria-label="Close map layers" onClick={()=>setShowLayers(false)}><Icon name="close" size={17}/></button></div><div className="segmented"><button className={basemap==='satellite'?'is-active':''} aria-pressed={basemap==='satellite'} onClick={()=>setBasemap('satellite')}>Satellite</button><button className={basemap==='street'?'is-active':''} aria-pressed={basemap==='street'} onClick={()=>setBasemap('street')}>Street map</button></div><div className="layer-options"><label>Wind speed & flow<input type="checkbox" checked={windEnabled} onChange={e=>setWindEnabled(e.target.checked)}/></label><label>Animate wind<input type="checkbox" checked={animated} onChange={e=>setAnimated(e.target.checked)}/></label><label>Runway 18<input type="checkbox" checked={showRunway} onChange={e=>setShowRunway(e.target.checked)}/></label><label>Airport boundary<input type="checkbox" checked={showBoundary} onChange={e=>setShowBoundary(e.target.checked)}/></label></div><p>{dataset.mode==='demo'?'Synthetic spatial field for design review.':dataset.source} Runway highlight identifies location.</p></section>}
+    <section id="layer-options" className="glass layer-popover" data-open={showLayers} aria-hidden={!showLayers} inert={!showLayers}><div className="popover-heading"><h2>Map layers</h2><button aria-label="Close map layers" onClick={()=>setShowLayers(false)}><Icon name="close" size={17}/></button></div><div className="segmented"><button className={basemap==='satellite'?'is-active':''} aria-pressed={basemap==='satellite'} onClick={()=>setBasemap('satellite')}>Satellite</button><button className={basemap==='street'?'is-active':''} aria-pressed={basemap==='street'} onClick={()=>setBasemap('street')}>Street map</button></div><div className="layer-options"><label>Wind speed & flow<input type="checkbox" checked={windEnabled} onChange={e=>setWindEnabled(e.target.checked)}/></label><label>Animate wind<input type="checkbox" checked={animated} onChange={e=>setAnimated(e.target.checked)}/></label><label>Runway 18<input type="checkbox" checked={showRunway} onChange={e=>setShowRunway(e.target.checked)}/></label><label>Airport boundary<input type="checkbox" checked={showBoundary} onChange={e=>setShowBoundary(e.target.checked)}/></label></div><p>{dataset.mode==='demo'?'Synthetic spatial field for design review.':dataset.source} Runway highlight identifies location.</p></section>
     <section className="glass wind-legend" aria-label="Wind layer legend"><div className="wind-legend-heading"><Icon name="wind" size={18}/><strong>Wind speed</strong><span className="wind-mode">{dataset.mode==='demo'?'Demo':'Airport'}</span><span>kt</span></div><div className="wind-scale"/><div className="wind-scale-labels"><span>0</span><span>10</span><span>20</span><span>30</span><span>40+</span></div><p>{speed===null?'Wind unavailable':`${speed.toFixed(1)} kt · from ${Math.round(from!)}°T`}<span>{formatUtc(frame.validTime)} UTC</span></p><small>{windEnabled?'Particles travel with the wind':'Wind layer hidden'}</small></section>
-    <div className="map-inspector"><section className="glass runway-panel" aria-label="Runway 18 summary"><div className="panel-heading"><div><p className="overline">Frankfurt Airport <span>FRA / EDDF</span></p><h1>Runway 18</h1><p className="runway-description">West · departures southbound</p></div><span className="demo-badge">{dataset.mode==='demo'?'Demo data':'Airport forecast'}</span></div><div className={`runway-status ${limited?'wind-limited':''}`}><span className="status-dot"/><span>{frame.weatherState==='unknown'?'Wind state unknown':limited?'Wind limits exceeded':'Within wind limits'}</span><span className="status-detail">{dataset.mode==='demo'?'Simulated':'Weather only'}</span></div><dl className="runway-metrics"><div><dt>Tailwind</dt><dd>{frame.tailwindKt===null?'—':frame.tailwindKt.toFixed(1)}<small> kt</small></dd></div><div><dt>Next weather change</dt><dd className="next-weather">{next?formatUtc(next.validTime):'—'}<small> UTC</small></dd></div></dl><div className="wind-secondary"><span>Crosswind incl. gusts</span><strong>{frame.gustCrosswindKt===null?'—':frame.gustCrosswindKt.toFixed(1)} kt</strong><span className="subtle">Limit 40 kt</span></div><p className="model-note">{dataset.mode==='demo'?'Synthetic weather demonstration.':'Weather suitability is not official runway status.'} {frame.probability===null?'Model confidence not available.':`Model probability ${(frame.probability*100).toFixed(0)}%.`}</p></section><WindForecast {...view}/></div>
+    <div className="map-inspector"><section className="glass runway-panel" aria-label="Runway 18 summary" data-tone={presentation.tone}>
+      <div className="runway-summary-heading"><h1>Runway 18</h1><div className="source-actions"><span className="demo-badge">{view.connectionError?'Connection lost':dataset.mode==='demo'?'Demo':'Live'}</span>{view.onRefresh&&<button className="refresh-data" aria-label="Refresh weather" disabled={view.refreshing} onClick={view.onRefresh}><Icon name="refresh" size={16}/></button>}</div></div>
+      <div className={`runway-status tone-${presentation.tone}`} title={presentation.detail}><span className="status-dot"/><span key={presentation.label} className="status-copy">{presentation.label}</span><span className="status-detail">{dataset.mode==='demo'?'Simulated':'Weather only'}</span></div>
+      <dl className="compact-metrics"><div><dt>Tailwind</dt><dd>{frame.tailwindKt===null?'—':frame.tailwindKt.toFixed(1)}<small> kt</small></dd></div><div><dt>Gust crosswind</dt><dd>{frame.gustCrosswindKt===null?'—':frame.gustCrosswindKt.toFixed(1)}<small> kt</small></dd></div><div><dt>Next change</dt><dd>{next?formatUtc(next.validTime):'—'}<small> UTC</small></dd></div></dl>
+    </section><WindForecast {...view}/></div>
     {status==='loading'&&<div className="map-notice glass" role="status">Loading Runway 18…</div>}{status==='error'&&<div className="map-notice glass" role="alert">Runway overlay unavailable. Reload to try again.</div>}{tileError&&<div className="map-notice glass" role="status">Some map tiles did not load. <button onClick={()=>setBasemap(basemap==='satellite'?'street':'satellite')}>Try another map</button></div>}
   </main>;
 }

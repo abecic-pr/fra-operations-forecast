@@ -101,3 +101,9 @@ and `forecast_hours_available`. A refresh failure outside that fallback returns
 The temporary inspection UI has been removed. The teammate owns the replacement
 UI. Preserve the distinctions between observations, forecasts, predictions,
 missing gusts, weather suitability, observed use, and official runway status.
+
+## Live observation comparison extension
+
+The local UI now uses the live API and requests refreshed sources every 10 minutes while visible, with read-only polling every 30 seconds and a manual refresh control. The API itself still performs no autonomous background polling.
+
+`GET /api/verification` returns screened provisional DWD station 01420 mean-wind observations and archived issued forecasts, without changing `/api/forecast` schema 1.0. The archive is `data/issued-forecasts.jsonl`. Only predictions valid after actual archive time are saved; past values are not backfilled. The green trace requires source/hash, station, timestamp, finite-value and QN 2/3 checks. These measurements remain provisional. See [frontend wind integration](frontend-wind.md) for comparison rules and refresh behavior.

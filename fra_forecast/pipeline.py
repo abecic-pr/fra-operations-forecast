@@ -120,6 +120,8 @@ def refresh(root, history_days=14, archive_days=7, labels_path=None, live_only=F
     snapshot = live_snapshot(datetime.now(UTC), models, metar, dwd, operations, client.checks + errors)
     snapshot["taf"] = taf
     write_json(root / "forecast.json", snapshot)
+    from .verification import remember_forecast
+    remember_forecast(root, snapshot)
     if operations:
         with (root / "operations-snapshots.jsonl").open("a") as f:
             f.write(json.dumps(operations) + "\n")

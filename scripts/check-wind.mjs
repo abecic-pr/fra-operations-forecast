@@ -44,3 +44,39 @@ assert.throws(()=>w.adaptBackendSnapshot({...payload,schema_version:'2.0'}));
 assert.throws(()=>w.adaptBackendSnapshot({...payload,forecast:[...payload.forecast].reverse()}));
 assert.throws(()=>w.adaptBackendSnapshot({...payload,forecast:[]}));
 console.log('Wind checks passed: direction, thresholds, synchronized demo field, time alignment and backend missing data.');
+
+const measuredInput = {valid_time:'2026-10-30T10:00:00Z',received_at:'2026-10-30T10:05:00Z',tailwind_kt:7,eligible:true,provisional:true,source:'DWD CDC',station_id:'01420',quality_code:'2',source_url:'https://opendata.dwd.de/measurements.zip'};
+const measured = w.screenedMeasurements([measuredInput],Date.parse('2026-10-30T11:00:00Z'));
+assert.equal(measured.length,1); assert.equal(measured[0].tailwindKt,7);
+assert.equal(w.screenedMeasurements([{...measuredInput,quality_code:'1'}],Date.parse('2026-10-30T11:00:00Z')).length,0);
+assert.equal(w.screenedMeasurements([{...measuredInput,eligible:false}],Date.parse('2026-10-30T11:00:00Z')).length,0);
+assert.equal(w.screenedMeasurements([measuredInput],Date.parse('2026-10-30T09:00:00Z')).length,0);
+const issued=w.screenedIssuedForecasts([{valid_time:'2026-10-30T10:00:00Z',issued_at:'2026-10-30T09:00:00Z',tailwind_kt:9}, {valid_time:'2026-10-30T10:00:00Z',issued_at:'2026-10-30T10:01:00Z',tailwind_kt:7}]);
+const matches=w.comparisonPairs(measured,issued,Date.parse('2026-10-30T11:00:00Z'));
+assert.equal(matches.length,1); assert.equal(matches[0].predicted,9); assert.equal(matches[0].measured,7); assert.equal(matches[0].error,2);
+assert.equal(w.comparisonPairs(measured,[],Date.parse('2026-10-30T11:00:00Z')).length,0);
+console.log('Measured comparison checks passed: 9 kt forecast versus 7 kt measured, future/unscreened data excluded.');
+
+// Display caution must not alter backend rules or turn unknown data green.
+const statusFrame = { ...demo.frames[0], weatherState:'usable', tailwindKt:5, crosswindKt:5, gustCrosswindKt:8 };
+assert.equal(w.runwayPresentation(statusFrame).tone,'green');
+assert.equal(w.runwayPresentation({...statusFrame,tailwindKt:12}).tone,'yellow');
+assert.equal(w.runwayPresentation({...statusFrame,gustCrosswindKt:32}).tone,'yellow');
+assert.equal(w.runwayPresentation({...statusFrame,tailwindKt:15}).tone,'red');
+assert.equal(w.runwayPresentation({...statusFrame,gustCrosswindKt:40}).tone,'yellow');
+assert.equal(w.runwayPresentation({...statusFrame,gustCrosswindKt:40.01}).tone,'red');
+assert.equal(w.runwayPresentation({...statusFrame,weatherState:'unknown',gustCrosswindKt:null}).tone,'unknown');
+assert.equal(w.runwayPresentation({...statusFrame,weatherState:'unknown',tailwindKt:15,gustCrosswindKt:null}).tone,'red');
+assert.equal(w.runwayPresentation(statusFrame,true).tone,'unknown');
+console.log('Runway colors passed: caution boundaries, exact limits, missing data and disconnected state.');
+
+const departuresSource = await readFile(new URL('../src/data/departures.ts', import.meta.url), 'utf8');
+const departuresCompiled = await transformWithOxc(departuresSource, 'departures.ts');
+const departuresAdapter = await import('data:text/javascript;base64,' + Buffer.from(departuresCompiled.code).toString('base64'));
+const board = departuresAdapter.adaptDepartures({schema_version:'1.0',generated_at:'2026-10-30T12:00:00Z',source:{status:'partial'},departures:[{flight_id:'sample',flight_number:'EX 123',destination:'Example',scheduled_departure_at:'2026-10-30T13:00:00Z',estimated_departure_at:'2026-10-30T13:20:00Z',assigned_runway:null}]});
+assert.equal(board.flights[0].assignedRunway,null);
+assert.equal(board.flights[0].at,'2026-10-30T13:20:00Z');
+assert.equal(board.flights[0].timeBasis,'Estimated');
+assert.equal(board.status,'partial');
+assert.equal(departuresAdapter.frankfurtTime('2026-10-30T13:20:00Z'),'14:20');
+console.log('Departure checks passed: no invented runway, estimated departure precedence, partial source and Frankfurt time.');
