@@ -14,7 +14,7 @@ from .verification import comparison_payload, remember_forecast
 from .wind_ml import MODEL_VERSION
 
 
-def make_handler(data_dir):
+def make_handler(data_dir, *, origin_scheme="http", refresh_after_seconds=None):
     data_dir = Path(data_dir)
     presentation = Path(__file__).parent / "presentation"
     refresh_lock = threading.Lock()
@@ -55,6 +55,15 @@ def make_handler(data_dir):
             self.send_body(status, json.dumps(value, allow_nan=False).encode())
 
         def do_GET(self):
+            if urlsplit(self.path).path == "/api/forecast" and refresh_after_seconds is not None:
+                snapshot = data_dir / "forecast.json"
+                if (not snapshot.exists() or time.time() - snapshot.stat().st_mtime > refresh_after_seconds) and refresh_lock.acquire(blocking=False):
+                    try:
+                        refresh(data_dir, live_only=True, history_days=1)
+                    except (OSError, ValueError, KeyError) as exc:
+                        self.log_error("Automatic refresh failed: %s", exc)
+                    finally:
+                        refresh_lock.release()
             if urlsplit(self.path).path == '/api/weather-bot/status':
                 return self.send_json(200, weather_bot.status())
             if urlsplit(self.path).path == '/api/weather-bot/preview':
@@ -80,7 +89,7 @@ def make_handler(data_dir):
         def do_POST(self):
             if urlsplit(self.path).path == '/api/weather-bot':
                 origin = self.headers.get('Origin')
-                expected = 'http://' + self.headers.get('Host', '')
+                expected = origin_scheme + '://' + self.headers.get('Host', '')
                 if self.headers.get('X-FRA-Chat') != '1' or (origin and origin != expected):
                     return self.send_json(403, {'error': 'Chat requires a same-origin request.'})
                 try:
@@ -106,7 +115,7 @@ def make_handler(data_dir):
                 return self.send_json(404, {"error": "Not found"})
             # Require an explicit client header and reject cross-origin browser calls.
             origin = self.headers.get("Origin")
-            expected = "http://" + self.headers.get("Host", "")
+            expected = origin_scheme + "://" + self.headers.get("Host", "")
             if self.headers.get("X-FRA-Refresh") != "1" or (origin and origin != expected):
                 return self.send_json(403, {"error": "Refresh requires X-FRA-Refresh: 1 and a same-origin request."})
             if not refresh_lock.acquire(blocking=False):
@@ -121,7 +130,7 @@ def make_handler(data_dir):
 
         def chat_reply(self):
             origin = self.headers.get("Origin")
-            expected = "http://" + self.headers.get("Host", "")
+            expected = origin_scheme + "://" + self.headers.get("Host", "")
             if self.headers.get("X-FRA-Chat") != "1" or (origin and origin != expected):
                 return self.send_json(403, {"error": "forbidden", "answer": "Chat requires X-FRA-Chat: 1 and a same-origin request."})
             if self.headers.get_content_type() != "application/json" or self.headers.get("Transfer-Encoding"):

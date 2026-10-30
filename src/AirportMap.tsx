@@ -44,7 +44,7 @@ export default function AirportMap({onBack,...view}:WindView&{onBack:()=>void}) 
   useEffect(()=>{
     if(!mapInstance)return;setTileError(false);
     const tile=L.tileLayer(basemap==='satellite'?'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}':'https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:basemap==='satellite'?'Imagery &copy; Esri, Vantor, Earthstar Geographics, GIS User Community':''}).on('tileerror',()=>setTileError(true)).addTo(mapInstance);
-    return()=>{tile.off();tile.remove();};
+    return()=>{tile.remove();tile.off();};
   },[mapInstance,basemap]);
   useEffect(()=>{if(!map.current||status!=='ready')return;for(const [layer,enabled]of [[runway.current,showRunway],[boundary.current,showBoundary]] as const){if(layer){if(enabled)layer.addTo(map.current);else layer.remove();}}},[showRunway,showBoundary,status]);
   const speed=frame.eastKt===null||frame.northKt===null?null:Math.hypot(frame.eastKt,frame.northKt);
