@@ -6,6 +6,7 @@ import Icon from './Icon';
 import TrafficOverview, {useTraffic} from './Traffic';
 import WeatherBot from './WeatherBot';
 import OperationsOverview from './OperationsOverview';
+import StartupScreen from './StartupScreen';
 import { backendWindProvider, airportDirection, formatUtc, frameAt, type WindDataset, type WindProvider } from './data/wind';
 import './styles.css';
 
@@ -41,7 +42,7 @@ function App() {
   useEffect(()=>{if(!playing)return;const id=window.setInterval(()=>setHour(previous=>previous+.25>horizon?0:previous+.25),400);return()=>clearInterval(id);},[playing,horizon]);
   function changeMode(next:'dashboard'|'map'){setMode(next);window.history.replaceState(null,'',`#${next}`);}
   const traffic=useTraffic(now,dataset?airportDirection(dataset,0).direction:null);
-  if(!dataset)return <main className="dashboard" role="status"><h1>{error?'Live forecast unavailable':'Loading airport weather…'}</h1><p>{error?'Start the local data API and try again.':'Connecting to Antonio’s data pipeline.'}</p>{error&&<button onClick={()=>window.location.reload()}>Try again</button>}</main>;
+  if(!dataset)return <StartupScreen error={error}/>;
   const example=examplePlan(exampleAt),activeDataset=planningPreview?example.dataset:dataset;
   const planning={board:planningPreview?example.board:traffic.board,preview:planningPreview,onPreview:()=>{setPlanningPreview(v=>!v);setExampleAt(Date.now());setHour(0);setPlaying(false);setSelectedWindow(null);setProposals([]);},selected:selectedWindow,onSelect:setSelectedWindow,proposals,onProposal:(id:string)=>setProposals(ids=>ids.includes(id)?ids.filter(v=>v!==id):[...ids,id])};
   const frame=frameAt(activeDataset,hour);
