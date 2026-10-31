@@ -4,60 +4,35 @@ const {readFileSync} = require("node:fs");
 const {join} = require("node:path");
 const vm = require("node:vm");
 
-class Element {
-  constructor() { this.children = []; this.style = {}; this.textContent = ""; }
-  append(...children) { this.children.push(...children); }
-  replaceChildren() { this.children = []; }
-  setAttribute() {}
-  addEventListener() {}
+const html = readFileSync(join(__dirname, "../fra_forecast/presentation/index.html"), "utf8");
+const pattern = html.match(/data-days="([^"]+)"/)[1];
+const count = kind => [...pattern].filter(day => day === kind).length;
+
+// The day grid must agree with the figures printed beside it.
+assert.equal(pattern.trimStart().length, 183, "30 April to 29 October 2026 inclusive");
+assert.equal(pattern.length - pattern.trimStart().length, 3, "Thursday start in Monday-first weeks");
+assert.equal(count("."), 1, "25 October is shown as not counted");
+assert.equal(count("w") + count("e") + count("c"), 182);
+assert.equal(count("c"), 65);
+assert.match(html, /<b data-count="65">65<\/b><small>\/182<\/small>/);
+assert.match(html, new RegExp(`${count("w")} days westbound all day, ${count("e")} days eastbound all day, ${count("c")} days with at least one change`));
+
+// Every animated figure already holds its final value for no-JS and reduced-motion readers.
+for (const [, target, decimals = 0, shown] of html.matchAll(/data-count="([\d.]+)"(?: data-decimals="(\d)")?>([^<]+)</g)) {
+  assert.equal(shown, Number(target).toLocaleString("en-GB", {minimumFractionDigits: +decimals}));
 }
-const elements = new Map();
-const document = {
-  querySelectorAll: () => [],
-  createElement: () => new Element(),
-  getElementById: id => {
-    if (!elements.has(id)) elements.set(id, new Element());
-    return elements.get(id);
-  },
-};
-const context = vm.createContext({document, AbortSignal, fetch: async () => ({ok: false})});
-vm.runInContext(readFileSync(join(__dirname, "../fra_forecast/presentation/page.js"), "utf8"), context);
 
-(async () => {
-  await context.loadReport();
-  assert.equal(elements.get("results").hidden, true);
-  assert.match(elements.get("report-status").textContent, /unavailable/);
-  assert.equal(elements.get("retry").hidden, false);
-
-  // Synthetic scores deliberately differ from the matched raw reference.
-  const report = {
-    model_version: "wind-comparison-v1",
-    policy: {winner: "linear_correction", cohort: {wind_rows: 100}, candidates: {
-      raw_icon_eu: {metrics: {vector_rmse_kt: 4}},
-      linear_correction: {metrics: {vector_rmse_kt: 3}},
-    }},
-    test: {1: {candidates: {
-      raw_icon_eu: {vector_rmse_kt: 99},
-      linear_correction: {vector_rmse_kt: 2, samples: 4, raw_on_same_rows: {vector_rmse_kt: 3},
-        weather: {probability: {matched_baselines: {challenge_rules: {
-          baseline_brier_score: 0, model_brier_score: null, samples: 4,
-        }}}}},
-    }}},
-  };
-  context.renderReport(report);
-  assert.match(elements.get("selection-summary").textContent, /25.0% lower/);
-  const cells = id => elements.get(id).children.map(row => row.children.map(cell => cell.textContent));
-  assert.deepEqual(cells("wind-scores"), [
-    ["1 h", "3.000", "2.000", "4"],
-    ["6 h", "Unavailable", "Unavailable", "Unavailable"],
-    ["24 h", "Unavailable", "Unavailable", "Unavailable"],
-  ]);
-  assert.deepEqual(cells("weather-scores")[0], ["1 h", "0.000000", "Unavailable", "4"]);
-  assert.throws(() => context.renderReport({}), /Unsupported/);
-  context.fetch = async () => ({ok: true, json: async () => report});
-  await context.loadReport();
-  assert.equal(elements.get("results").hidden, false);
-  assert.equal(elements.get("report-status").hidden, true);
-  assert.equal(elements.get("candidate-bars").children.length, 4);
-  console.log("Presentation checks passed: matched scores, nulls, missing data, invalid reports and recovery.");
-})().catch(error => { console.error(error); process.exitCode = 1; });
+// The real-week replay must agree with its introduction.
+const week = attribute => html.match(new RegExp(`data-${attribute}="([^"]+)"`))[1];
+const dirs = [...week("dirs")], kt = week("kt").split(" ").map(Number), deg = week("deg").split(" ").map(Number);
+assert.equal(dirs.length, 168);
+assert.equal(kt.length, 168);
+assert.equal(deg.length, 168);
+assert.ok(dirs.every(d => d === "e" || d === "w"));
+assert.equal(dirs.filter((d, i) => i && d !== dirs[i - 1]).length, 15);
+assert.match(html, /changed direction 15 times/);
+assert.equal(Math.max(...kt), 13);
+assert.equal(Math.round(kt.reduce((a, b) => a + b) / kt.length), 5);
+assert.match(html, /about 5 kt on average, never above 13 kt/);
+assert.ok(deg.every(d => d >= 0 && d < 360));
+console.log("presentation checks passed");
