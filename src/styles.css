@@ -629,20 +629,33 @@ input[type="range"]:active::-moz-range-thumb { scale:1.18; box-shadow:0 0 0 5px 
 .dashboard-footer a { color:#0066cc; text-underline-offset:4px; }
 
 /* Startup: the map view's dark airfield and glass while the first forecast loads. */
-.startup { position: relative; min-height: 100dvh; display: grid; place-items: center; padding: 24px 16px; overflow: hidden; color: #f5f7f6; background: radial-gradient(80% 70% at 50% 40%, #2f4640 0%, #1f2d29 55%, #1c2925 100%); }
-.startup-wind { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
-.startup-wind path { fill: none; stroke: #fff; stroke-opacity: .1; stroke-width: 1.5; stroke-linecap: round; stroke-dasharray: 140 420; animation: startup-flow 9s linear infinite; }
-.startup-wind path:nth-child(2) { animation-duration: 12s; animation-delay: -4s; }
-.startup-wind path:nth-child(3) { animation-duration: 10s; animation-delay: -7s; stroke: #e7f36d; stroke-opacity: .14; }
-.startup-wind path:nth-child(4) { animation-duration: 14s; animation-delay: -2s; }
-@keyframes startup-flow { from { stroke-dashoffset: 560; } to { stroke-dashoffset: 0; } }
-.startup-runways { position: absolute; width: min(110vw, 1000px); height: auto; aspect-ratio: 69 / 59; left: 50%; top: 50%; translate: -50% -50%; opacity: .9; animation: startup-settle 1.6s cubic-bezier(.16,1,.3,1) both; }
-.startup-runways .edge { stroke: #ffffff26; stroke-width: 150; }
-.startup-runways .strip { stroke: #101a17; stroke-width: 110; }
-/* A light runs along each runway in turn, like edge lights being checked; it implies no direction of operation. */
-.startup-runways .scan { fill: none; stroke: #e7f36d; stroke-width: 40; stroke-linecap: round; stroke-dasharray: 0 1000; animation: startup-scan 4.8s cubic-bezier(.65,0,.35,1) infinite; animation-delay: calc(var(--i) * 1.2s); }
-@keyframes startup-scan { 0% { stroke-dasharray: 0 1000; stroke-dashoffset: 0; opacity: 1; } 20% { stroke-dasharray: 1000 1000; stroke-dashoffset: 0; opacity: .9; } 25%, 100% { stroke-dasharray: 1000 1000; stroke-dashoffset: -1000; opacity: 0; } }
-@keyframes startup-settle { from { opacity: 0; scale: .94; rotate: -2deg; } }
+.startup { position: relative; min-height: 100dvh; display: grid; place-items: center; padding: 24px; overflow: hidden; color: #f5f7f6; background: radial-gradient(80% 70% at 50% 40%, #2f4640 0%, #1f2d29 55%, #1c2925 100%); }
+.startup-map, .startup-scrim, .startup-wind { position: absolute; inset: 0; width: 100%; height: 100%; }
+.startup-map { z-index: 0; isolation: isolate; background: transparent; }
+.startup-map .leaflet-tile-pane { filter: saturate(.7) brightness(.82) contrast(1.05); }
+.startup-map .leaflet-control-attribution { background: #1c2925b3; color: #c3cfca; font-size: 10px; }
+.startup-map .leaflet-control-attribution a { color: #e7f36d; }
+.startup-scrim { z-index: 1; pointer-events: none; background: linear-gradient(90deg, #1c2925d9 0%, #1c292566 38%, #1c292526 70%), linear-gradient(0deg, #1c292599, transparent 40%); }
+.startup-wind { z-index: 2; pointer-events: none; }
+.startup-lane { stroke: #e7f36d; stroke-width: 46; stroke-linecap: round; stroke-dasharray: 90 210; opacity: .8; }
+.startup-lane.is-18 { stroke: #f5f7f6; opacity: .55; }
+.startup-label { font-weight: 700; font-size: 250px; fill: #f5f7f6; text-anchor: middle; opacity: .28; transition: opacity .6s; paint-order: stroke; stroke: #1c2925; stroke-width: 40px; }
+.startup-label.is-on { opacity: 1; fill: #e7f36d; }
+.startup-plane { fill: url(#startup-plane); stroke: #1c2925; stroke-width: 1.5px; }
+.startup-engine { stroke: #6f7d78; stroke-width: 5px; stroke-linecap: round; }
+.startup-shadow { fill: #0b1512; filter: blur(3px); }
+.startup-explain { position: absolute; z-index: 3; top: 24px; left: 24px; display: flex; align-items: center; gap: 16px; max-width: min(460px, calc(100% - 48px)); padding: 14px 20px 14px 16px; border: 1px solid #ffffff2b; border-radius: 22px; background: #34413fb3; -webkit-backdrop-filter: blur(24px) saturate(1.3); backdrop-filter: blur(24px) saturate(1.3); }
+.startup-explain strong { flex: none; font-size: 44px; line-height: 1; font-weight: 700; letter-spacing: -.04em; color: #e7f36d; font-variant-numeric: tabular-nums; animation: startup-flip .6s cubic-bezier(.16,1,.3,1); }
+.startup-explain p { margin: 0; font-size: 14px; line-height: 1.4; color: #f5f7f6; }
+.startup-explain small { display: block; margin-top: 4px; font-size: 12px; color: #c3cfca; }
+@keyframes startup-flip { from { opacity: 0; transform: translateY(-10px); } }
+.startup .startup-card { z-index: 3; align-self: end; justify-self: start; }
+@media (max-width: 899px) {
+  .startup { padding: 16px; }
+  .startup-explain { top: 16px; left: 16px; max-width: calc(100% - 32px); }
+  .startup .startup-card { justify-self: stretch; width: 100%; padding: 26px 24px 24px; }
+  .startup-scrim { background: linear-gradient(0deg, #1c2925e6 0%, #1c292540 55%, #1c292566 100%); }
+}
 .startup-card { position: relative; z-index: 1; width: min(460px, 100%); padding: 34px 34px 30px; border: 1px solid #ffffff2b; border-radius: 28px; background: #34413fc4; background-clip: padding-box; -webkit-backdrop-filter: blur(32px) saturate(1.3); backdrop-filter: blur(32px) saturate(1.3); box-shadow: 0 24px 60px #07181440, inset 0 1px 0 #ffffff0d; animation: startup-arrive .9s cubic-bezier(.16,1,.3,1) .15s both; }
 @keyframes startup-arrive { from { opacity: 0; transform: translateY(18px); } }
 .startup-compass { position: relative; display: grid; place-items: center; width: 64px; height: 64px; border-radius: 50%; border: 1px solid #ffffff2b; background: radial-gradient(circle, #ffffff0f, transparent 70%); }
@@ -660,9 +673,7 @@ input[type="range"]:active::-moz-range-thumb { scale:1.18; box-shadow:0 0 0 5px 
 .startup-retry:hover { transform: translateY(-1px); }
 .startup-retry:active { transform: scale(.97); }
 .startup.is-error .startup-compass svg { animation: none; rotate: 0deg; stroke: #93a39d; }
-.startup.is-error .startup-runways .scan, .startup.is-error .startup-wind path { animation-play-state: paused; opacity: 0; }
 @media (prefers-reduced-motion: reduce) {
   .startup *, .startup *::before { animation: none !important; }
-  .startup-runways .scan { opacity: 0; }
 }
-@media (prefers-reduced-transparency: reduce) { .startup-card { background: #34413f; -webkit-backdrop-filter: none; backdrop-filter: none; } }
+@media (prefers-reduced-transparency: reduce) { .startup-card, .startup-explain { background: #34413f; -webkit-backdrop-filter: none; backdrop-filter: none; } }
