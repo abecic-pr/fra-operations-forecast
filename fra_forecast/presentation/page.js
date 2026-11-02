@@ -197,3 +197,14 @@ if (motion) {
   // Fallback for first-screen content when observer callbacks are throttled (hidden or background tabs).
   setTimeout(() => reveals.filter(node => !node.classList.contains("in") && node.getBoundingClientRect().top < innerHeight).forEach(enter), 900);
 }
+
+// Latest hourly check from the online learner; the static text stays if the API is absent.
+const describe = w => Number.isFinite(w?.wind_speed_kt)
+  ? `${w.wind_speed_kt.toFixed(1)} kt${Number.isFinite(w.wind_from_deg_true) ? ` from ${Math.round(w.wind_from_deg_true)}°` : ", calm"}${Number.isFinite(w.temperature_c) ? `, ${w.temperature_c.toFixed(1)} °C` : ""}`
+  : "unavailable";
+fetch("/api/online-learning", {cache: "no-store"}).then(r => r.ok ? r.json() : null).then(report => {
+  const last = report?.recent?.at(-1);
+  if (!last) return;
+  const time = new Date(last.valid_time).toLocaleTimeString("en-GB", {timeZone: "Europe/Berlin", hour: "2-digit", minute: "2-digit"});
+  $("online-live").textContent = `Latest check, ${time}: one hour earlier we forecast ${describe(last.learned)} (raw model: ${describe(last.raw)}). The airport measured ${describe(last.actual)}. ${report.live.verified_forecasts_all_leads.toLocaleString("en-GB")} forecasts checked so far.`;
+}).catch(() => {});

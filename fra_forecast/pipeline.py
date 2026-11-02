@@ -6,8 +6,8 @@ from pathlib import Path
 
 from .domain import UTC, DirectionState, RULESET, iso, parse_time, runway_conditions
 from .dataset import build_dataset, dataset_report, load_labels
-from .sources import (SourceClient, current_metar, current_operations, dwd_observations,
-                      forecast, iem_observations, write_csv, write_json)
+from .sources import (LIVE_FIELDS, SourceClient, current_metar, current_operations, dwd_observations,
+                      dwd_temperature, forecast, iem_observations, write_csv, write_json)
 
 
 def next_change(points, field, initial):
@@ -118,7 +118,7 @@ def refresh(root, history_days=14, archive_days=7, labels_path=None, live_only=F
     metar = attempt("EDDF METAR", lambda: current_metar(client), None)
     taf = attempt("EDDF TAF", lambda: client.json("awc_taf", "https://aviationweather.gov/api/data/taf?ids=EDDF&format=json")[0], [])
     operations = attempt("current operating direction", lambda: current_operations(client), None)
-    models = {model: attempt(model, lambda model=model: forecast(client, model), {}) for model in ("icon_d2", "icon_eu")}
+    models = {model: attempt(model, lambda model=model: forecast(client, model, fields=LIVE_FIELDS), {}) for model in ("icon_d2", "icon_eu")}
     snapshot = live_snapshot(datetime.now(UTC), models, metar, dwd, operations, client.checks + errors)
     snapshot["taf"] = taf
     from .ml_live import enrich
@@ -127,6 +127,9 @@ def refresh(root, history_days=14, archive_days=7, labels_path=None, live_only=F
     enrich_operations(snapshot, root, enabled=use_ml, observations=dwd)
     from .direction import enrich as enrich_direction
     enrich_direction(snapshot)
+    temperatures = attempt("DWD temperature", lambda: dwd_temperature(client, now - timedelta(days=1), datetime.now(UTC) + timedelta(minutes=1)), {})
+    from .online import step as learn_online
+    attempt("online learning", lambda: learn_online(root, snapshot, dwd, temperatures), None)
     snapshot["runway18_departures_url"] = "/api/runway18/departures"
     write_json(root / "forecast.json", snapshot)
     from .verification import remember_forecast

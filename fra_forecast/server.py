@@ -33,6 +33,7 @@ def make_handler(data_dir, *, origin_scheme="http", refresh_after_seconds=None):
         "/api/model-metrics": (data_dir / "models" / MODEL_VERSION / "metrics.json", "application/json"),
         "/api/runway18/departures": (data_dir / "runway18-departures.json", "application/json"),
         "/api/operations-metrics": (data_dir / "operations-evaluation.json", "application/json"),
+        "/api/online-learning": (data_dir / "online" / "report.json", "application/json"),
         "/api/discovery": (data_dir / "comparison" / "discovery.json", "application/json"),
         "/api/model-comparison": (data_dir / "comparison" / "evaluation.json", "application/json"),
         "/api/forecast-comparison": (data_dir / "comparison" / "forecast.json", "application/json"),

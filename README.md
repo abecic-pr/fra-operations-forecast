@@ -1,12 +1,44 @@
 # FRA Operations Forecast
 
-The [FraAlliance challenge brief](docs/challenge/README.md), with the unchanged original PDF alongside it, is this project's source of truth. Every project chat must read it under [AGENTS.md](AGENTS.md).
+**48-hour decision support for Frankfurt Airport's operating direction (Betriebsrichtung, BR 07 Ost / BR 25 West) and Startbahn 18 West departure weather.** Built for, and winner of, the FraAlliance challenge at AI Week Frankfurt, 30 October 2026.
 
-Forecasting runway operating direction and Runway 18 weather suitability at Frankfurt Airport.
+DFS decides the operating direction. This project does not replace that decision. It gives hub planners at Fraport and Lufthansa an earlier, quantified outlook. Typical uses are departure-runway and SID planning ahead of TOBT/TSAT, turnaround and staffing, and RWY18 restriction windows. It also gives noise and community stakeholders a measured, hourly complement to the public 8-hour [UNH Betriebsrichtungsprognose](https://www.umwelthaus.org/fluglaerm/anwendungen-service/aktuelle-betriebsrichtung-und-prognose/).
 
-FRA Operations Forecast is a research prototype for the **FraAlliance challenge at AI Week Frankfurt 2026**. The project aims to turn weather observations and forecasts into a probabilistic outlook for airport operations over the next 48 hours.
+| Output, every hour to t+48 h | How | Status |
+| --- | --- | --- |
+| Betriebsrichtung 07/25 + certainty | Two blended logistic classifiers on forecast and recent DWD wind, trained on 182 days of observed direction | Learned, provisional labels, uncalibrated |
+| Startbahn 18 West weather usability | Challenge rules (15 kt tailwind, 40 kt crosswind) on a corrected wind with residual sampling | Provisional; rare events too few to prove skill |
+| Next probable BR change | Hourly class crossings | Hourly window; exact switch time unvalidated |
+| Wind and temperature | ICON-D2 / ICON-EU, **corrected every hour by online learning from our own past errors** | Implemented; measured below |
 
-**Status:** Working weather ingestion, versioned challenge rules, 48-hour forecasts, model comparison, provisional learned 07/25 probabilities, optional AI coordinator, replay/export and local JSON API. The Runway 18 dashboard and default map show live wind, provisional measured-versus-forecast history and timeline playback; parallel-runway traffic remains supporting context. The [model card](docs/model-card.md) and [ML report](docs/ml-improvement.md) record measured results: 1-hour direction accuracy beats the rules, 24-hour accuracy ties, and 6-hour accuracy remains one case behind. Operating-history point labels and probabilities remain provisional; exact switch-time validation and RWY18 rare-event skill are unresolved.
+**Measured, out of sample, on 1-, 6- and 24-hour leads:**
+
+- **Operating direction:** accuracy against observed direction is 78.5% versus 71.9% for the challenge rule baseline at 1 h. The two are close at 6 h and tie at 24 h. Brier score is 25.8% lower across 1–48 h. Source: [model card](docs/model-card.md).
+- **Wind:** the hourly online learner cuts wind error by 32% at 1 h, 36% at 6 h and 31% at 24 h. Vector RMSE goes from 4.23/4.49/4.52 kt to 2.86/2.88/3.12 kt, and wind-speed error is roughly halved. Source: [online learning](docs/online-learning.md).
+
+**Repository map.**
+
+| Path | What is there |
+| --- | --- |
+| `fra_forecast/` | The Python pipeline and the API. `pipeline.py` handles refresh, `online.py` the hourly learning, `operations_ml.py` the 07/25 model, `wind_ml.py` / `comparison.py` the wind models, `server.py` the API. |
+| `src/` | The React dashboard. |
+| `tests/` | The test suite (`python -m unittest discover -s tests`). |
+| `docs/` | `challenge/` holds the original brief. Also here: the [model card](docs/model-card.md), [data contract](docs/backend-data.md) and [source notes](docs/izvori-podataka.md). |
+
+**Terminology.** The challenge says "OD 07/25" and "RWY18". Fraport and UNH say "Betriebsrichtung 07/25" and "Startbahn 18 West". Both refer to the same things.
+
+Two caveats apply:
+
+- **Rule versions differ.** The challenge baseline uses a 10 kt landing / 15 kt departure tailwind rule. That is not the 5 kt ICAO noise-preferential limit DFS applies in practice. Both are kept separate and versioned.
+- **This is a research prototype.** Its outputs are not operational aviation guidance.
+
+**Status:** Working weather ingestion, versioned challenge rules, 48-hour forecasts, model comparison, provisional learned 07/25 probabilities, hourly online learning, optional AI coordinator, replay/export and local JSON API. The Runway 18 dashboard and default map show:
+
+- live wind;
+- provisional measured-versus-forecast history;
+- timeline playback.
+
+Parallel-runway traffic remains supporting context. The [model card](docs/model-card.md) and [ML report](docs/ml-improvement.md) record measured results. Operating-history point labels and probabilities remain provisional. Exact switch-time validation and RWY18 rare-event skill are unresolved.
 
 ## Run the frontend locally
 
@@ -43,8 +75,6 @@ schema 1.0/1.1 adapter, controls, demo limitations and later API integration. Se
 [map data sources](public/data/README.md) for OSM and satellite attribution.
 Use separate branches and test locally before pushing; the shared project
 knowledge-base rule is in [AGENTS.md](AGENTS.md).
-
-**Status:** Working weather ingestion and 48-hour forecast, validation-selected model comparison, GFS source comparison, discovery reports, optional AI coordinator, replay/export, and local JSON API. The one-page [model card](docs/model-card.md) records measured results and incomplete challenge deliverables. Learned operating direction still needs independent historical labels; the training/inference/evaluation code is implemented and those live probabilities remain `null`. The teammate owns UI.
 
 ## Objective
 

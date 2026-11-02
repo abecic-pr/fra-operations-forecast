@@ -14,6 +14,7 @@ FILES = (
     "models/wind-comparison-v1/policy.json",
     "models/operations-v3/manifest.json", "models/operations-v3/model.joblib",
     "models/operations-v3/metrics.json", "operations-evaluation.json",
+    "online/state.json", "online/report.json", "online/backtest.json",
 )
 
 

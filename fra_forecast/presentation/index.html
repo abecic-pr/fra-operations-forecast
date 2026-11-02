@@ -157,6 +157,29 @@
       <p class="note reveal">This test period was also reviewed while we built the models, so treat these as early results. A fresh, untouched test is the next step.</p>
     </section>
 
+    <section class="block" aria-labelledby="online-title">
+      <h2 id="online-title" class="reveal">It learns from its<br>own mistakes, every hour.</h2>
+      <p class="intro reveal">Every hour we keep what we forecast. When the airport's weather station has measured that hour, we score the forecast we actually published, then update the correction. Each forecast is only ever corrected with errors measured before it was made.</p>
+      <div class="grid two">
+        <article class="panel glass reveal">
+          <h3>Replaying the test weeks hour by hour</h3>
+          <p class="big"><b data-count="26">26</b>%<span> lower wind error across 1–48 hours than the raw ICON-EU forecast</span></p>
+          <div class="bars" aria-label="Overall wind error in knots by lead time with hourly learning, lower is better">
+            <div class="bar-row"><span class="lead">1 h</span><div class="bar-pair"><div class="bar ours" style="--v:57.2"><em>2.86 kt</em></div><div class="bar base" style="--v:84.6"><em>4.23 kt</em></div></div></div>
+            <div class="bar-row"><span class="lead">6 h</span><div class="bar-pair"><div class="bar ours" style="--v:57.6"><em>2.88 kt</em></div><div class="bar base" style="--v:89.8"><em>4.49 kt</em></div></div></div>
+            <div class="bar-row"><span class="lead">24 h</span><div class="bar-pair"><div class="bar ours" style="--v:62.4"><em>3.12 kt</em></div><div class="bar base" style="--v:90.4"><em>4.52 kt</em></div></div></div>
+          </div>
+          <ul class="legend"><li><i class="ours"></i>Learning every hour</li><li><i class="base"></i>Raw weather model</li></ul>
+          <p class="caption">Same 21 September – 26 October forecasts as above. Wind-speed error roughly halves (3.1 to 1.8 kt). Learning settings were chosen on spring and summer only.</p>
+        </article>
+        <article class="panel glass reveal">
+          <h3>Forecast versus measured, live</h3>
+          <p id="online-live">Wind speed, wind direction and temperature are checked against DWD station 01420 every hour. The latest check appears here about an hour after the first live forecast is measured.</p>
+          <p class="caption">This is online learning from forecast error, not reinforcement learning: there is no reward, only the measured miss. Operating direction and Runway 18 still use the raw forecast; the learned wind is published next to it. <a href="/api/online-learning">Learning report</a></p>
+        </article>
+      </div>
+    </section>
+
     <section class="block" aria-labelledby="how-title">
       <h2 id="how-title" class="reveal">Three steps,<br>no magic.</h2>
       <div class="panel glass reveal how" id="how">
