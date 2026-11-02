@@ -159,8 +159,10 @@ and the 48-hour runway outputs. Select the four steps with a pointer or keyboard
 arrow keys. Its validation comparison and 1/6/24-hour test scores come from the
 existing `/api/model-comparison` report, with explicit exploratory-test and
 missing-label limitations. Without local artifacts, the explanation still works
-and the results show an unavailable state. It adds no dependencies, network
-weather refreshes, or changes to forecast JSON. The teammate can link directly to
+and the results show an unavailable state. Its hero shares the loading screen's
+3D airport (`presentation/airport-scene.js`); the browser loads MapLibre 6.12.0
+from jsdelivr, Esri imagery and OpenFreeMap buildings. It adds no weather
+refreshes or changes to forecast JSON. The teammate can link directly to
 `/how-it-works`; a frontend proxy must forward that path and its assets, plus
 `/api/model-comparison`. Page files are in `fra_forecast/presentation/`.
 
