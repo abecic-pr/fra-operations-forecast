@@ -44,4 +44,4 @@ At 48 hours, observation persistence had speed MAE **3.91 kt**, gust MAE **5.61 
 - Historical model publication is estimated as initialization plus four hours. Reference observations may include subsequent quality corrections.
 - Actual 07/25 operating probabilities remain null pending independent labels. No operating history or operational accuracy was manufactured.
 - API: `GET /api/forecast` exposes `forecast[].ml`; `GET /api/model-metrics` exposes the complete evaluation and reliability bins.
-- Read [the ML guide](wind-ml.md) and [JSON contract](backend-data.md) before connecting the UI.
+- Read [the ML guide](../wind-ml.md) and [JSON contract](../backend-data.md) before connecting the UI.

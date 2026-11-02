@@ -1,0 +1,11 @@
+Copyright (c) 2026 Antonio Bečić and Philipp Gassen. All rights reserved.
+
+This repository is published for evaluation only. No licence is granted to
+copy, modify, distribute, sublicense or use this software, its models or its
+documentation, in whole or in part, for any purpose other than reviewing it,
+without prior written permission from the copyright holders.
+
+Third-party data and libraries keep their own licences and terms, including
+OpenStreetMap (ODbL), Esri World Imagery, OpenFreeMap / OpenMapTiles, DWD Open
+Data, Open-Meteo, MapLibre GL JS (BSD-3-Clause), Leaflet (BSD-2-Clause) and
+React (MIT). See docs/data-sources.md for data attribution.

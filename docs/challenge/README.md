@@ -61,4 +61,4 @@ C. Runway 18:
 - Do not manufacture historical operations labels, calibrated confidence, model improvement, or minute-level precision from hourly data. Missing evidence means a disclosed incomplete deliverable, not an exemption from the requirement.
 - Six hours is the whole-project build budget. UI remains owned by the teammate under the working agreement. Additional data sources, model comparisons, and the AI agent are user-requested extensions, not PDF deliverables.
 
-Implementation status belongs in the [implementation plan](../model-comparison-implementation-plan.md) and evaluation documents, not in this source transcription. Recheck the code and artifacts before relying on a status report.
+Implementation status belongs in the [implementation plan](../archive/model-comparison-implementation-plan.md) and evaluation documents, not in this source transcription. Recheck the code and artifacts before relying on a status report.

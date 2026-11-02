@@ -5,7 +5,8 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "fra-operations-forecast"
 version = "0.1.0"
-description = "Frankfurt weather ingestion and runway forecast hackathon baseline"
+description = "48-hour operating-direction and Runway 18 weather forecast for Frankfurt Airport"
+license = {text = "Proprietary, all rights reserved (see LICENSE)"}
 requires-python = ">=3.11"
 dependencies = []
 

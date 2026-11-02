@@ -1,4 +1,4 @@
-"""Small, cached readers for the public sources verified in docs/izvori-podataka.md."""
+"""Small, cached readers for the public sources verified in docs/data-sources.md."""
 
 import csv
 import hashlib

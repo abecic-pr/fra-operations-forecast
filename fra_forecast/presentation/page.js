@@ -171,6 +171,10 @@ week.querySelectorAll(".sim-presets button").forEach(button => button.addEventLi
   ktInput.value = button.dataset.kt; setFrom(Number(button.dataset.from));
 }));
 ktInput.addEventListener("input", simulate);
+// A shared link to /how-it-works#set-the-wind opens straight into the simulator.
+const openFromLink = () => { if (location.hash === "#set-the-wind") setMode("sim"); };
+addEventListener("hashchange", openFromLink);
+openFromLink();
 
 /* How it works: draw forecast, then correction, then corrected wind, lighting each step. */
 const how = $("how");

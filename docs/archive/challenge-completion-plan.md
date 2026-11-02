@@ -2,7 +2,7 @@
 
 Prepared 30 October 2026. Planning only: this document does not implement the steps below. The user confirmed **three hours remain in the total six-hour hackathon**, and **the PDF is the only organizer material supplied**. Subtract planning and coordination time from that remaining budget; do not start a fresh three-hour clock when coding begins.
 
-The [challenge text and diagram notes](challenge/README.md) and [original PDF](challenge/AI_Week_2026_Hackathon_-_FraAlliance_Case.pdf) define the requirements. This document gives the executable order for the required work in the [broader comparison/coordinator plan](model-comparison-implementation-plan.md). Its implementation choices, metrics, timeboxes, and proposed output schema are our choices, not additional wording from the PDF. Comparison, additional providers, and the [chatbot](chatbot-plan.md) remain requested extensions with no new time allocation until the required work is packaged.
+The [challenge text and diagram notes](../challenge/README.md) and [original PDF](../challenge/AI_Week_2026_Hackathon_-_FraAlliance_Case.pdf) define the requirements. This document gives the executable order for the required work in the [broader comparison/coordinator plan](model-comparison-implementation-plan.md). Its implementation choices, metrics, timeboxes, and proposed output schema are our choices, not additional wording from the PDF. Comparison, additional providers, and the [chatbot](chatbot-plan.md) remain requested extensions with no new time allocation until the required work is packaged.
 
 **Current position and dependencies**
 
@@ -37,7 +37,7 @@ If step 1 fails, complete useful label validation and explicit unavailable behav
 
 **1. Establish usable operations labels**
 
-Reuse `dataset.load_labels()`, `label_at()`, and [the existing CSV schema](../examples/operations-labels.csv). The [bounded source research](operations-label-research.md) found no verified ready-to-import historical dataset. Its best lead is DFLD's documented Fraport-based actual-direction series, distinct from the wind display. Inspect the actual-direction data on two or three dates overlapping the cached ICON period before committing to collection. Do not build an image/OCR reconstruction or a new ADS-B ingestion system.
+Reuse `dataset.load_labels()`, `label_at()`, and [the existing CSV schema](../../examples/operations-labels.csv). The [bounded source research](../operations-label-research.md) found no verified ready-to-import historical dataset. Its best lead is DFLD's documented Fraport-based actual-direction series, distinct from the wind display. Inspect the actual-direction data on two or three dates overlapping the cached ICON period before committing to collection. Do not build an image/OCR reconstruction or a new ADS-B ingestion system.
 
 Acceptance requires observed 07/25 semantics, timezone-aware timestamps, explicit gaps, provenance, sufficient overlap with the cached weather dates, and usable source conditions. Record label intervals, distinct issue/target dates, both-class counts, and distinct switch events. Reuse the existing chronological splitter's minimum date/partition checks; repeated forecasts of the same outcome do not create independent events. Collection and normalization must fit the timebox; a plausible web page alone does not pass the gate.
 

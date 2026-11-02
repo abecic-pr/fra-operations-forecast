@@ -2,280 +2,159 @@
 
 **48-hour decision support for Frankfurt Airport's operating direction (Betriebsrichtung, BR 07 Ost / BR 25 West) and Startbahn 18 West departure weather.** Built for, and winner of, the FraAlliance challenge at AI Week Frankfurt, 30 October 2026.
 
-DFS decides the operating direction. This project does not replace that decision. It gives hub planners at Fraport and Lufthansa an earlier, quantified outlook. Typical uses are departure-runway and SID planning ahead of TOBT/TSAT, turnaround and staffing, and RWY18 restriction windows. It also gives noise and community stakeholders a measured, hourly complement to the public 8-hour [UNH Betriebsrichtungsprognose](https://www.umwelthaus.org/fluglaerm/anwendungen-service/aktuelle-betriebsrichtung-und-prognose/).
+**Live demo:** [fra-operations-forecast.vercel.app](https://fra-operations-forecast.vercel.app)
 
-| Output, every hour to t+48 h | How | Status |
+- **[How our ML works](https://fra-operations-forecast.vercel.app/how-it-works):** the model explained on a 3D view of the airport.
+- **[Set the wind yourself](https://fra-operations-forecast.vercel.app/how-it-works#set-the-wind):** turn the wind and watch the runways respond.
+
+![How our ML works: the 3D airport behind the headline](docs/images/ml-page-hero.jpg)
+
+## Why it matters
+
+DFS decides the operating direction; this project does not replace that decision. It gives hub planners at Fraport and Lufthansa an earlier, quantified outlook for:
+
+- departure-runway and SID planning ahead of TOBT/TSAT;
+- turnaround and staffing;
+- Runway 18 restriction windows.
+
+It also gives noise and community stakeholders a measured, hourly complement to the public 8-hour [UNH Betriebsrichtungsprognose](https://www.umwelthaus.org/fluglaerm/anwendungen-service/aktuelle-betriebsrichtung-und-prognose/).
+
+## What it forecasts, every hour to t+48 h
+
+| Output | How | Status |
 | --- | --- | --- |
-| Betriebsrichtung 07/25 + certainty | Two blended logistic classifiers on forecast and recent DWD wind, trained on 182 days of observed direction | Learned, provisional labels, uncalibrated |
-| Startbahn 18 West weather usability | Challenge rules (15 kt tailwind, 40 kt crosswind) on a corrected wind with residual sampling | Provisional; rare events too few to prove skill |
-| Next probable BR change | Hourly class crossings | Hourly window; exact switch time unvalidated |
-| Wind and temperature | ICON-D2 / ICON-EU, **corrected every hour by online learning from our own past errors** | Implemented; measured below |
+| Betriebsrichtung 07/25 with certainty | Two blended logistic classifiers on forecast and recent DWD wind, trained on 182 days of observed direction | Learned, provisional labels, uncalibrated |
+| Startbahn 18 West weather usability | Challenge rules (15 kt tailwind, 40 kt crosswind) on a corrected wind with residual sampling | Provisional; too few rare events to prove skill |
+| Next probable BR change | Hourly class crossings | Hourly window; exact switch time not yet validated |
+| Wind and temperature | ICON-D2 / ICON-EU, **corrected every hour by learning from our own past errors** | Implemented and measured |
 
-**Measured, out of sample, on 1-, 6- and 24-hour leads:**
+## Measured results
 
-- **Operating direction:** accuracy against observed direction is 78.5% versus 71.9% for the challenge rule baseline at 1 h. The two are close at 6 h and tie at 24 h. Brier score is 25.8% lower across 1–48 h. Source: [model card](docs/model-card.md).
-- **Wind:** the hourly online learner cuts wind error by 32% at 1 h, 36% at 6 h and 31% at 24 h. Vector RMSE goes from 4.23/4.49/4.52 kt to 2.86/2.88/3.12 kt, and wind-speed error is roughly halved. Source: [online learning](docs/online-learning.md).
+All results are out of sample, at 1-, 6- and 24-hour leads.
 
-**Repository map.**
+- **Operating direction:** at 1 h, accuracy against the observed direction is 78.5%, against 71.9% for the challenge rule baseline. The two are close at 6 h and tie at 24 h. Probability error (Brier score) is 25.8% lower across 1–48 h. Source: the [model card](docs/model-card.md) and [ML report](docs/ml-improvement.md).
+- **Wind:** the hourly online learner cuts wind vector error by 32% at 1 h, 36% at 6 h and 31% at 24 h. Vector RMSE falls from 4.23 / 4.49 / 4.52 kt to 2.86 / 2.88 / 3.12 kt, and wind-speed error roughly halves. Each forecast is corrected only with errors measured before it was issued. Source: [online learning](docs/online-learning.md).
 
-| Path | What is there |
-| --- | --- |
-| `fra_forecast/` | The Python pipeline and the API. `pipeline.py` handles refresh, `online.py` the hourly learning, `operations_ml.py` the 07/25 model, `wind_ml.py` / `comparison.py` the wind models, `server.py` the API. |
-| `src/` | The React dashboard. |
-| `tests/` | The test suite (`python -m unittest discover -s tests`). |
-| `docs/` | `challenge/` holds the original brief. Also here: the [model card](docs/model-card.md), [data contract](docs/backend-data.md) and [source notes](docs/izvori-podataka.md). |
+![Set the wind yourself: Runway 18 closes in a 330° / 20 kt north wind](docs/images/wind-simulator.jpg)
 
-**Terminology.** The challenge says "OD 07/25" and "RWY18". Fraport and UNH say "Betriebsrichtung 07/25" and "Startbahn 18 West". Both refer to the same things.
+## How it works
 
-Two caveats apply:
+1. **Ingest public data.** Sources:
+   - DWD 10-minute observations at station 01420 (Frankfurt/Main);
+   - EDDF METAR and TAF;
+   - ICON-D2 and ICON-EU forecasts through Open-Meteo, including archived model runs;
+   - the current direction from UNH/DFS;
+   - Frankfurt Airport's public flight board.
 
-- **Rule versions differ.** The challenge baseline uses a 10 kt landing / 15 kt departure tailwind rule. That is not the 5 kt ICAO noise-preferential limit DFS applies in practice. Both are kept separate and versioned.
-- **This is a research prototype.** Its outputs are not operational aviation guidance.
+   Every record keeps its source, units, valid time and the time it became available.
+2. **Correct the weather.** Forecasts are compared hour by hour with what the airport's wind sensor then measured. An online learner updates its correction every hour (see [online learning](docs/online-learning.md)). A validation-selected Ridge correction is also kept for comparison.
+3. **Apply runway logic.**
+   - The challenge's Section 3 rules give a versioned baseline: 10 kt landing and 15 kt departure tailwind limits, a 40 kt crosswind limit, and 30-minute persistence.
+   - A trained classifier estimates 07/25 from forecast and recent wind.
+   - Runway 18 weather suitability is kept separate from official runway status.
+4. **Serve and show.** A Python JSON API (`fra_forecast/server.py`) feeds:
+   - the React dashboard, which has a Runway 18 forecast, a satellite map, a parallel-runway traffic view and an assistant;
+   - the [How our ML works](https://fra-operations-forecast.vercel.app/how-it-works) page.
 
-**Status:** Working weather ingestion, versioned challenge rules, 48-hour forecasts, model comparison, provisional learned 07/25 probabilities, hourly online learning, optional AI coordinator, replay/export and local JSON API. The Runway 18 dashboard and default map show:
+![The dashboard: Runway 18 outlook, tailwind forecast and satellite map](docs/images/dashboard.jpg)
 
-- live wind;
-- provisional measured-versus-forecast history;
-- timeline playback.
+## Run it locally
 
-Parallel-runway traffic remains supporting context. The [model card](docs/model-card.md) and [ML report](docs/ml-improvement.md) record measured results. Operating-history point labels and probabilities remain provisional. Exact switch-time validation and RWY18 rare-event skill are unresolved.
-
-## Run the frontend locally
-
-Use Node.js 22.12+ or 20.19+.
+You need Python 3.11+ and Node.js 22.12+ (or 20.19+). The core pipeline uses only the Python standard library; training and model comparison use the optional `ml` extras.
 
 ```sh
+git clone https://github.com/abecic-pr/fra-operations-forecast.git
+cd fra-operations-forecast
+python3 -m venv .venv && source .venv/bin/activate
+python -m pip install -e '.[ml]'
 npm ci
-# In a separate terminal, first start the Python data API below.
+```
+
+```sh
+# Terminal 1: fetch live data (needs internet), then serve the API on 127.0.0.1:8000
+python -m fra_forecast refresh --live-only --history-days 1 --archive-days 0
+python -m fra_forecast serve
+```
+
+```sh
+# Terminal 2: the dashboard on http://127.0.0.1:5173
 npm run dev
 ```
 
-Open http://127.0.0.1:5173/ or the map at http://127.0.0.1:5173/#map.
-The frontend now uses the local data API. Start it in a separate terminal:
+The ML page is at http://127.0.0.1:8000/how-it-works. Checks:
 
 ```sh
-python3 -m fra_forecast refresh --live-only --history-days 1 --archive-days 0
-python3 -m fra_forecast serve
+python -m unittest discover -s tests
+npm run build && npm run check:wind && node tests/check_presentation.cjs
 ```
 
-The map defaults to Runway 18 with its status highlight and original measured/forecast chart. Airport direction remains visible; Other runways opens the optional traffic view. The dashboard leads with Runway 18 operational indicators and its dedicated wind preview. The blue chart line is forecast tailwind and the
-green line is source-screened DWD measured tailwind, labeled provisional. The
-clock marker shows actual UTC time independently of forecast playback. The UI
-reads saved data every 30 seconds and requests fresh sources every 10 minutes
-while visible. Manual refresh is also available. Never show an accuracy score
-until an observation matches a forecast archived before that observation time.
+To reproduce the models, see the runbooks:
 
-```sh
-npm run check:wind
-npm run build
-```
+- [wind ML](docs/wind-ml.md): `prepare-ml` and `train-ml`;
+- [operating direction](docs/ml-improvement.md): `fetch-operations` and `train-operations`;
+- [online learning](docs/online-learning.md): `learn-online`;
+- [model comparison](docs/model-comparison.md): `compare-models`.
 
-See [frontend wind integration](docs/frontend-wind.md) for the provider boundary,
-schema 1.0/1.1 adapter, controls, demo limitations and later API integration. See
-[map data sources](public/data/README.md) for OSM and satellite attribution.
-Use separate branches and test locally before pushing; the shared project
-knowledge-base rule is in [AGENTS.md](AGENTS.md).
+Outputs, caches and model artifacts go to the ignored `data/` folder. [Deployment](docs/deployment.md) covers the Vercel setup.
 
-## Objective
+## Repository map
 
-Develop and evaluate a machine-learning model that predicts:
-
-- **Operating direction:** whether Frankfurt is expected to use direction 07 (eastbound) or 25 (westbound).
-- **Runway 18 suitability:** the probability that wind conditions allow departures from Runway 18 West.
-- **Upcoming changes:** the next likely operating-direction change and its uncertainty.
-
-The model should improve on the weather-rule baseline defined in the challenge brief.
-
-## Planned forecast outputs
-
-| Output | Description |
+| Path | Contents |
 | --- | --- |
-| Hourly outlook | Predictions for each hour through a 48-hour horizon |
-| Operating direction | Predicted 07/25 direction and associated probabilities |
-| Runway 18 suitability | Probability of suitable wind conditions for departures |
-| Change outlook | Expected timing or time window of the next direction change |
-| Wind conditions | Wind speed, direction, gusts, and runway-relative components |
-| Data freshness | Observation time, forecast issue time, and source information |
+| `fra_forecast/` | Python pipeline and API: `pipeline.py` (refresh), `online.py` (hourly learning), `operations_ml.py` (07/25 model), `wind_ml.py` and `comparison.py` (wind models), `server.py` (API), `presentation/` (ML page) |
+| `src/` | React dashboard (Vite, Leaflet, MapLibre) |
+| `tests/` | Python unit tests and Node checks |
+| `docs/` | [Documentation index](docs/README.md): challenge brief, model card, data contract, runbooks |
+| `api/`, `scripts/` | Vercel entry point and deployment packaging |
+| `branding/` | Identity and logo assets |
 
-Weather suitability and observed runway use are separate concepts. A period without departures does not by itself establish that a runway was unavailable.
+## Data sources and attribution
 
-## Data approach
+- **Weather observations and forecasts:**
+  - [DWD Open Data](https://opendata.dwd.de/), station 01420;
+  - [Aviation Weather Center](https://aviationweather.gov/data/api/) for METAR and TAF;
+  - [Open-Meteo](https://open-meteo.com/) for ICON-D2, ICON-EU and archived single runs.
+- **Operations:**
+  - **Current direction:** [UNH](https://www.umwelthaus.org/fluglaerm/anwendungen-service/aktuelle-betriebsrichtung-und-prognose/) (source: DFS).
+  - **Historical direction:** [DFLD](https://www.dfld.de/) displays, which are based on Fraport data.
+  - **Flights:** Frankfurt Airport's public flight board.
+- **Maps:**
+  - runway geometry © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors (ODbL);
+  - imagery © Esri, Vantor, Earthstar Geographics;
+  - 3D buildings via [OpenFreeMap](https://openfreemap.org/) / OpenMapTiles.
 
-The planned dataset combines airport weather observations, archived weather forecasts, and recorded operating-direction or runway-use data. Candidate weather sources include:
+Full source research is in [data sources](docs/data-sources.md). Two notes:
 
-- [DWD Open Data](https://opendata.dwd.de/) for station observations and numerical forecasts.
-- [Aviation Weather Center](https://aviationweather.gov/data/api/) for EDDF METAR and TAF reports.
-- [Open-Meteo](https://open-meteo.com/en/docs) for forecast access, including [individual archived model runs](https://open-meteo.com/en/docs/single-runs-api).
+- **Direction history stays out of the repo.** The DFLD-derived history is kept local and not redistributed, because redistribution rights are unverified.
+- **Imagery terms.** Esri World Imagery is used under Esri's basemap terms. A commercial deployment would need an appropriate Esri licence or another imagery provider.
 
-Each record should preserve its source, units, observation or valid time, and the time it became available. Final source selection, coverage, and limitations will be documented alongside the implementation.
+## Limitations
 
-## Evaluation
+- **Labels are a proxy.** Operating-direction labels come from public half-hour displays, a provisional stand-in for the directions actually flown. Stable-period filtering favours easier cases.
+- **Probabilities are not calibrated.** The certainty score is a model score, not a verified probability.
+- **Some results are still open:**
+  - Runway 18 closures were too rare in the test weeks to establish skill.
+  - At 6 hours, the direction model is one case behind the rules.
+  - Exact switch timing is not yet validated.
+- **Two timing assumptions:**
+  - Historical forecast and observation publication times are estimated: ICON +4 h, DWD +1 h.
+  - The test period was inspected during development, so a fresh, untouched holdout is still needed.
+- **This is a research prototype.** The challenge's 10/15 kt rules are not the 5 kt ICAO noise-preferential limit DFS applies in practice. Outputs are not operational aviation guidance.
 
-Evaluate forecasts on held-out periods at **1-hour, 6-hour, and 24-hour lead times**. Only information available when each forecast would have been issued may be used as input.
+## Next steps
 
-Compare the model with the challenge's rule-based baseline and a persistence baseline. Report classification performance, probability calibration, and change-timing error where reliable reference labels are available.
+- **Benchmark against the public forecast.** Score hourly direction forecasts against the UNH 8-hour Betriebsrichtungsprognose on the directions actually flown.
+- **Get verified labels.** Train on DFS/Fraport operating-direction records with exact switch times.
+- **Make online learning durable.** Use shared storage so the hosted learner keeps its state across restarts, and feed the learned wind into the 07/25 and Runway 18 models.
+- **Calibrate and test fresh.** Calibrate probabilities on a new holdout, and produce forecasts for agreed evaluation days.
 
-## Working with the repository
+## Team
 
-```bash
-git clone https://github.com/abecic-pr/fra-operations-forecast.git
-cd fra-operations-forecast
-```
+- **Antonio Bečić:** data sourcing, ML and the forecast backend.
+- **Philipp Gassen:** product design and the dashboard.
 
-Python 3.11 or newer is required. The baseline backend uses the standard library; model comparison and training use the existing optional ML dependencies.
+Built at AI Week Frankfurt 2026 on the [FraAlliance challenge brief](docs/challenge/README.md).
 
-```bash
-# Current observations and 48-hour forecast; requires internet access.
-python3 -m fra_forecast refresh --live-only
+## Licence
 
-# Also collect 14 days of observations and seven archived daily forecast runs.
-python3 -m fra_forecast refresh
-
-# Run focused offline checks.
-python3 -m unittest discover -s tests -v
-
-# Serve forecast JSON at http://127.0.0.1:8000/api/forecast.
-python3 -m fra_forecast serve
-```
-
-Outputs are written to the ignored `data/` directory. The teammate can consume
-`data/forecast.json`; its contract is documented in [docs/backend-data.md](docs/backend-data.md).
-The API exposes saved forecasts and source diagnostics, plus a manual refresh
-endpoint. A standalone presentation page is at `/how-it-works`. It binds only to `127.0.0.1`;
-choose a different port with `serve --port 8001`. The teammate's frontend can
-proxy `/api/*` to this server; see the integration notes in the data contract.
-
-Brand assets and illustrative design references are in [branding/](branding/README.md).
-
-## ML presentation page
-
-Run `python3 -m fra_forecast serve`, then open
-[How our ML works](http://127.0.0.1:8000/how-it-works). Restart an already-running
-server to load the new route. This standalone page was added at the user's
-request; the teammate's main UI remains separately owned.
-
-The page explains data alignment, residual correction, empirical uncertainty,
-and the 48-hour runway outputs. Select the four steps with a pointer or keyboard
-arrow keys. Its validation comparison and 1/6/24-hour test scores come from the
-existing `/api/model-comparison` report, with explicit exploratory-test and
-missing-label limitations. Without local artifacts, the explanation still works
-and the results show an unavailable state. Its hero shares the loading screen's
-3D airport (`presentation/airport-scene.js`); the browser loads MapLibre 6.12.0
-from jsdelivr, Esri imagery and OpenFreeMap buildings. It adds no weather
-refreshes or changes to forecast JSON. The teammate can link directly to
-`/how-it-works`; a frontend proxy must forward that path and its assets, plus
-`/api/model-comparison`. Page files are in `fra_forecast/presentation/`.
-
-## Wind ML quickstart
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install -e '.[ml]'
-
-# Cached public backfill: 180 completed days, four ICON-EU runs per day.
-python -m fra_forecast prepare-ml --days 180
-
-# Fit corrections, select on validation dates, calibrate on separate dates,
-# and evaluate once on the chronological final test set.
-python -m fra_forecast train-ml
-
-# Load the local model and append ML outputs to the existing raw forecast.
-python -m fra_forecast refresh --live-only
-python -m fra_forecast serve
-```
-
-Read `forecast[].ml` for corrected wind and RWY18 weather probability. The existing
-fields continue to contain the raw weather/rule baseline. See
-[the ML guide](docs/wind-ml.md) for targets, time alignment, metrics, and fallbacks.
-The first measured outcome is recorded in [the evaluation summary](docs/ml-evaluation.md).
-Model metrics are available at `/api/model-metrics`. Training data, cached
-responses, and model artifacts remain in the ignored `data/` directory.
-
-Historical publication times are estimated, and DWD references may contain later
-quality corrections. Reported backtests are conditional on those assumptions.
-Probability outputs are provisional estimates; their reliability and rare-event
-coverage must be read alongside the score. No improvement is assumed before evaluation.
-
-## Runway 18 departure assessments
-
-Normal refresh now also reads Frankfurt Airport's public departure-board feed
-and matches each upcoming flight to RWY18 weather. No flight API key is needed.
-
-```bash
-# Refresh just the flight list using the saved weather snapshot.
-python -m fra_forecast refresh-departures --hours 48
-
-# Weather-only refresh if flight data is not needed.
-python -m fra_forecast refresh --live-only --no-departures
-```
-
-Read `/api/runway18/departures` or `data/runway18-departures.json`.
-The board provides schedules and departure estimates, but no estimated takeoff
-times or assigned runways. Flights are assessed **for** RWY18 weather; they are
-not presented as confirmed RWY18 departures. Individual runway-use probability
-stays `null`. See [the departure data contract](docs/runway18-departures.md).
-
-Supply independently verified labels with `--labels path/to/operations.csv`,
-using the header in [examples/operations-labels.csv](examples/operations-labels.csv).
-The template intentionally contains no invented records. Historical forecast
-publication times currently use a clearly marked four-hour estimate, so this
-dataset is not yet evidence of leakage-free model accuracy.
-
-The six-hour hackathon constraint and division of work are recorded in
-[AGENTS.md](AGENTS.md). The teammate owns UI; backend work prioritizes runnable increments.
-
-## Airport and flight chatbot
-
-`POST /api/chat` answers questions from saved airport forecasts and public flight
-weather assessments, using an OpenAI key on the backend. It supports flight-number
-and codeshare lookup, follow-up context, source evidence and freshness warnings.
-Set `OPENAI_API_KEY` and `FRA_CHAT_MODEL` before starting the server. The teammate
-owns the chat panel; see [setup and the JSON contract](docs/chatbot.md).
-
-## Project context
-
-Built for **AI Week Frankfurt, 30 October 2026**, based on the FraAlliance brief *Frankfurt Airport Operating Direction Forecast*.
-
-The prototype is intended for research and demonstration. Its predictions are not operational air traffic control instructions.
-
-### AI Weather Bot
-
-The dashboard includes a project assistant with data lookups, forecast charts and an interactive airport map. It is intentionally **disconnected from OpenAI** for Antonio's handoff. Use Preview charts & map to review real saved data without a key.
-
-To enable AI answers, add `OPENAI_API_KEY` to the ignored root `.env` file (see `.env.example`). The default backend model is `gpt-5-mini`; set `OPENAI_MODEL` to change it. Keep the key on the Python backend, never in VITE_ variables. The status refreshes automatically; no key is committed. A real OpenAI completion still needs account/model access and has not been tested without a key.
-
-See [AI Weather Bot setup and data contract](docs/ai-weather-bot.md) for source scope, limits and the `/api/weather-bot` endpoints. The model reasons internally and returns a short explanation with sources. Weather suitability and official runway closure remain distinct.
-
-## Comparison demo and submission handoff
-
-The [eastbound/westbound forecast](docs/operating-direction.md) now explicitly maps
-07/25 predictions to landing direction, approach side, and Centre departure runway.
-Runway 18 stays southbound in both directions. Read `direction_forecast` in either
-forecast endpoint; each point states whether it is learned or weather-rule based.
-
-The [comparison runbook](docs/model-comparison.md) covers discovery, five scored
-candidates, live GFS comparison, the optional AI coordinator, independent OD
-training, replay/export, and the local frozen-artifact bundle. The selected
-Ridge correction reduced validation vector RMSE from 5.517 to 4.377 kt.
-RWY18 probability improvement and actual operating-direction skill are not established.
-
-```bash
-source .venv/bin/activate
-python -m fra_forecast compare-models
-python -m fra_forecast discover-data --probe-gfs
-python -m fra_forecast refresh --live-only --no-departures
-python -m fra_forecast refresh-comparison
-python -m fra_forecast serve
-```
-
-The one-page submission card is [available as PDF](output/pdf/model-card.pdf)
-with [editable Markdown](docs/model-card.md). Jury dates and issue format are
-absent from the brief: populate [the issue template](examples/jury-issues.csv)
-only with actual organizer inputs before running `export-submission`.
-
-## Parallel runway traffic
-
-The dashboard and map now include the three parallel runways, excluding RWY18 from the new flight feature. Arrival/departure schedules are searchable and paginated; separate wind-status cards automatically select the next confirmed assigned flight’s landing (10 kt) or departure (15 kt) tailwind limit. The public board has no assignments or aircraft coordinates, so live mode clearly shows Unassigned flights and no invented map positions. Design preview demonstrates simulated aircraft and assignments. See [the traffic contract and Antonio handoff](docs/airport-traffic.md).
-
-Collect the traffic snapshot with `python -m fra_forecast.traffic`; it is also included in normal weather refreshes. The server exposes it at `/api/traffic`.
+Copyright © 2026 Antonio Bečić and Philipp Gassen. All rights reserved. Published for evaluation only; see [LICENSE](LICENSE).
