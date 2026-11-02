@@ -10,6 +10,13 @@
   <link rel="stylesheet" href="/how-it-works/style.css">
   <!-- Same pinned MapLibre as the app's package.json; the 3D scene module is shared with the app's loading screen. -->
   <script type="importmap">{"imports":{"maplibre-gl":"https://cdn.jsdelivr.net/npm/maplibre-gl@6.12.0/dist/maplibre-gl.mjs"}}</script>
+  <!-- Vercel Web Analytics (anonymous, cookie-free); skipped on localhost where /_vercel does not exist. -->
+  <script>
+    if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) {
+      window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
+      document.head.append(Object.assign(document.createElement("script"), {defer: true, src: "/_vercel/insights/script.js"}));
+    }
+  </script>
   <script src="/how-it-works/page.js" defer></script>
   <script src="/how-it-works/hero.js" type="module"></script>
   <script src="/how-it-works/week-scene.js" type="module"></script>

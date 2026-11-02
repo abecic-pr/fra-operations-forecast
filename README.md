@@ -155,6 +155,10 @@ Full source research is in [data sources](docs/data-sources.md). Two notes:
 
 Built at AI Week Frankfurt 2026 on the [FraAlliance challenge brief](docs/challenge/README.md).
 
+## Privacy
+
+The live site counts page views with [Vercel Web Analytics](https://vercel.com/docs/analytics/privacy-policy): anonymous and cookie-free, with no personal data stored.
+
 ## Licence
 
 Copyright © 2026 Antonio Bečić and Philipp Gassen. All rights reserved. Published for evaluation only; see [LICENSE](LICENSE).

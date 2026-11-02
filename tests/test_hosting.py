@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 import tempfile
 import threading
+import time
 import unittest
 from unittest.mock import patch
 
@@ -110,6 +111,11 @@ class HostingTests(unittest.TestCase):
                 prepare(source, target)
 
     def test_https_origin_and_stale_refresh(self):
+        def wait_for(mock):
+            deadline = time.monotonic() + 5
+            while not mock.called and time.monotonic() < deadline:
+                time.sleep(.01)
+
         with tempfile.TemporaryDirectory() as folder:
             snapshot = Path(folder) / "forecast.json"
             snapshot.write_text('{"forecast": []}')
@@ -131,8 +137,11 @@ class HostingTests(unittest.TestCase):
                     self.assertEqual(request("GET", "/api/forecast")[0], 200)
                     refresh.assert_not_called()
                     os.utime(snapshot, (1, 1))
-                    self.assertEqual(request("GET", "/api/forecast")[0], 200)
+                    started = time.monotonic()
+                    self.assertEqual(request("GET", "/api/forecast")[0], 200)  # stale: served now, refreshed behind
+                    wait_for(refresh)
                     refresh.assert_called_once_with(Path(folder), live_only=True, history_days=1)
+                    self.assertLess(time.monotonic() - started, 5)
                     self.assertEqual(request("POST", "/api/refresh", "https://fra.example")[0], 200)
                     self.assertEqual(request("POST", "/api/refresh", "https://other.example")[0], 403)
                     self.assertEqual(request("POST", "/api/refresh", "http://fra.example")[0], 403)
@@ -140,8 +149,9 @@ class HostingTests(unittest.TestCase):
                     self.assertEqual(request("POST", "/api/chat", "https://fra.example")[0], 200)
                 with patch("fra_forecast.server.weather_bot.ask", return_value={"answer": "ok"}):
                     self.assertEqual(request("POST", "/api/weather-bot", "https://fra.example")[0], 200)
-                with patch("fra_forecast.server.refresh", side_effect=OSError("offline")):
+                with patch("fra_forecast.server.refresh", side_effect=OSError("offline")) as failing:
                     self.assertEqual(request("GET", "/api/forecast"), (200, {"forecast": []}))
+                    wait_for(failing)
             finally:
                 server.shutdown()
                 server.server_close()

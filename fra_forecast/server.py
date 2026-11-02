@@ -62,15 +62,22 @@ def make_handler(data_dir, *, origin_scheme="http", refresh_after_seconds=None):
         def do_GET(self):
             if urlsplit(self.path).path == "/api/forecast" and refresh_after_seconds is not None:
                 snapshot = data_dir / "forecast.json"
-                if (not snapshot.exists() or time.time() - snapshot.stat().st_mtime > refresh_after_seconds) and refresh_lock.acquire(blocking=not snapshot.exists()):
-                    try:
-                        # Cold-start requests wait for the first snapshot, then reuse it.
-                        if not snapshot.exists() or time.time() - snapshot.stat().st_mtime > refresh_after_seconds:
-                            refresh(data_dir, live_only=True, history_days=1)
-                    except (OSError, ValueError, KeyError) as exc:
-                        self.log_error("Automatic refresh failed: %s", exc)
-                    finally:
-                        refresh_lock.release()
+                stale = lambda: not snapshot.exists() or time.time() - snapshot.stat().st_mtime > refresh_after_seconds
+                if stale() and refresh_lock.acquire(blocking=not snapshot.exists()):
+                    def update():
+                        try:
+                            if stale():
+                                refresh(data_dir, live_only=True, history_days=1)
+                        except (OSError, ValueError, KeyError) as exc:
+                            self.log_error("Automatic refresh failed: %s", exc)
+                        finally:
+                            refresh_lock.release()
+                    # Cold-start requests wait for the first snapshot; later visitors get the saved
+                    # one at once while it refreshes, and the dashboard's 30 s poll picks up the update.
+                    if snapshot.exists():
+                        threading.Thread(target=update, daemon=True).start()
+                    else:
+                        update()
             if urlsplit(self.path).path == '/api/weather-bot/status':
                 return self.send_json(200, weather_bot.status())
             if urlsplit(self.path).path == '/api/weather-bot/preview':
