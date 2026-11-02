@@ -44,10 +44,30 @@ for (let d = 1; d < 7; d++) $("week-days").append(svgNode("line", {x1: d * 24, x
 $("week-axis").replaceChildren(...Array.from({length: 7}, (_, d) => Object.assign(document.createElement("span"), {textContent: label(d * 24).split(" ").slice(0, 2).join(" ")})));
 const scrub = $("week-scrub"), play = $("week-play"), weekNeedle = $("week-needle");
 let hour = 0, weekAngle = 0, playing = false, lastStep = 0, autoplayed = false;
+/* Section 3 baseline for one steady wind, as in fra_forecast.domain: tailwind/crosswind per runway heading. */
+const component = (kt, from, heading) => {
+  const a = (from - heading) * Math.PI / 180;
+  return {tail: Math.max(0, -kt * Math.cos(a)), cross: Math.abs(kt * Math.sin(a))};
+};
+function baseline(from, kt, current) {
+  const w = component(kt, from, 250), e = component(kt, from, 70), south = component(kt, from, 180);
+  const result = {w, e, south, rwy18: south.tail < 15 && south.cross <= 40};
+  if (w.cross > 40) return {...result, od: null, why: `A ${Math.round(w.cross)} kt crosswind exceeds the 40 kt limit, so the parallel runways close.`};
+  const now = current ?? (w.tail <= e.tail ? "25" : "07"), other = now === "25" ? "07" : "25";
+  const tail = now === "25" ? w.tail : e.tail;
+  if (tail >= 10) return {...result, od: other, why: `A ${Math.round(tail)} kt tailwind on ${now} reaches the 10 kt landing limit, so the airport switches at once to ${other}.`};
+  if (tail > 0.5) return {...result, od: other, why: `A ${Math.round(tail)} kt tailwind on ${now} is tolerated for up to 30 minutes. As it persists, the airport turns to ${other} for a headwind.`};
+  return {...result, od: now, why: kt < 1 ? `Calm: the airport keeps operating ${now}.` : `Aircraft on ${now} land and take off into a headwind, so nothing changes.`};
+}
+// The 3D stage (week-scene.js) reads the wind and runway state from these attributes.
+function showWind(from, kt, od, rwy18) {
+  Object.assign(week.dataset, {windFrom: from, windKt: kt, od: od ?? "closed", rwy18: rwy18 ? "open" : "closed"});
+}
+
 function setHour(next) {
   hour = Math.max(0, Math.min(167, next));
   scrub.value = hour;
-  week.dataset.od = dirs[hour] === "e" ? "07" : "25";
+  if (week.dataset.mode !== "sim") showWind(degrees[hour], speeds[hour], dirs[hour] === "e" ? "07" : "25", baseline(degrees[hour], speeds[hour], null).rwy18);
   $("week-time").textContent = label(hour);
   $("week-od").textContent = name(dirs[hour]);
   $("week-kt").textContent = speeds[hour];
@@ -66,6 +86,7 @@ function setPlaying(next) {
   const icon = playing ? "#i-pause" : hour >= 167 ? "#i-replay" : "#i-play";
   play.querySelector("use").setAttribute("href", icon);
   play.setAttribute("aria-label", playing ? "Pause" : hour >= 167 ? "Replay the week" : "Play the week");
+  if (playing && week.dataset.mode === "sim") return setPlaying(false);
   if (playing) { lastStep = performance.now(); requestAnimationFrame(advance); }
 }
 function advance(now) {
@@ -82,6 +103,35 @@ play.addEventListener("click", () => {
 });
 scrub.addEventListener("input", () => { setPlaying(false); setHour(Number(scrub.value)); });
 setHour(0);
+
+/* Set the wind yourself: the same stage, driven by the Section 3 baseline instead of the recorded week. */
+const fromInput = $("sim-from"), ktInput = $("sim-kt");
+let simOd = "25";
+function simulate() {
+  const from = Number(fromInput.value), kt = Number(ktInput.value), result = baseline(from, kt, simOd);
+  simOd = result.od;
+  showWind(from, kt, result.od, result.rwy18);
+  $("sim-from-out").textContent = `${compassPoint(from)} ${String(from).padStart(3, "0")}°`;
+  $("sim-kt-out").textContent = `${kt} kt`;
+  $("sim-od").textContent = result.od ? name(result.od === "07" ? "e" : "w") : "Parallel runways closed";
+  $("sim-why").textContent = result.why + (result.rwy18 ? "" : ` Runway 18 closes: ${Math.round(result.south.tail) >= 15 ? `a ${Math.round(result.south.tail)} kt tailwind reaches its 15 kt departure limit` : `a ${Math.round(result.south.cross)} kt crosswind exceeds 40 kt`}.`);
+  $("sim-landing").textContent = `${Math.round(result.w.tail)} kt / ${Math.round(result.e.tail)} kt · limit 10`;
+  $("sim-18").textContent = `${Math.round(result.south.tail)} kt · limit 15 · ${result.rwy18 ? "open" : "closed"}`;
+  $("sim-cross").textContent = `${Math.round(result.w.cross)} kt · ${Math.round(result.south.cross)} kt · limit 40`;
+}
+function setMode(mode) {
+  week.dataset.mode = mode;
+  week.querySelectorAll(".week-mode button").forEach(button => button.setAttribute("aria-pressed", String(button.dataset.mode === mode)));
+  week.querySelector(".week-real").hidden = mode === "sim";
+  week.querySelector(".week-sim").hidden = mode !== "sim";
+  if (mode === "sim") { setPlaying(false); simulate(); } else setHour(hour);
+}
+week.querySelectorAll(".week-mode button").forEach(button => button.addEventListener("click", () => setMode(button.dataset.mode)));
+week.querySelectorAll(".sim-presets button").forEach(button => button.addEventListener("click", () => {
+  fromInput.value = button.dataset.from; ktInput.value = button.dataset.kt; simulate();
+}));
+fromInput.addEventListener("input", simulate);
+ktInput.addEventListener("input", simulate);
 
 /* How it works: draw forecast, then correction, then corrected wind, lighting each step. */
 const how = $("how");

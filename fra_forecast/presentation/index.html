@@ -12,6 +12,7 @@
   <script type="importmap">{"imports":{"maplibre-gl":"https://cdn.jsdelivr.net/npm/maplibre-gl@6.12.0/dist/maplibre-gl.mjs"}}</script>
   <script src="/how-it-works/page.js" defer></script>
   <script src="/how-it-works/hero.js" type="module"></script>
+  <script src="/how-it-works/week-scene.js" type="module"></script>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to content</a>
@@ -81,31 +82,66 @@
       <h2 id="week-title" class="reveal">One real week,<br>hour by hour.</h2>
       <p class="intro reveal">18–24 June 2026 was one of the busiest weeks in our records. Winds stayed light (about 5 kt on average, never above 13 kt), yet the airport changed direction 15 times.</p>
       <div class="panel glass reveal week" id="week" data-start="2026-06-17T22:00:00Z" data-dirs="wwwwwweeeeewwwwwwwwwwwwwwwwwewweeewwwwwwwwwwwwwweeeewwwwwwwwwwwwwwwwwwwwwwwwwwweeeeeeeeewwwwweeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeewweeeeeeeewwwweeeeeeeeeeeeeeeeeeee" data-deg="70 60 40 80 60 70 50 50 40 190 250 190 230 240 220 280 280 210 180 230 120 130 130 60 50 50 50 40 50 10 60 110 80 100 250 200 200 230 220 190 240 210 180 250 110 40 0 60 60 160 270 90 60 320 80 100 40 170 200 200 190 190 190 220 210 200 220 320 150 0 330 0 40 90 60 50 280 120 310 70 60 160 80 80 80 150 240 290 260 280 320 330 30 10 10 30 30 50 30 40 70 50 50 40 50 30 60 10 30 10 20 10 10 40 30 30 30 30 20 20 20 30 30 50 50 30 50 60 40 30 20 40 40 30 340 40 0 40 30 20 70 50 50 20 20 40 50 70 60 70 80 80 40 50 20 20 20 20 40 310 40 30 20 30 40 60 50 40" data-kt="2 3 3 2 3 2 3 5 3 2 3 3 5 9 8 5 10 5 2 3 3 3 3 3 3 3 4 4 3 4 3 6 3 3 2 4 5 5 6 7 6 6 3 4 4 2 10 3 6 5 2 2 4 5 5 5 1 4 4 9 9 10 8 9 5 6 6 5 1 4 7 5 4 3 2 2 4 2 13 5 7 6 5 5 5 3 4 3 3 6 5 6 7 7 6 10 6 6 7 7 4 4 4 8 7 5 5 7 8 7 4 9 9 9 8 8 10 9 8 8 8 9 7 7 6 7 5 6 7 5 6 7 6 4 4 7 9 7 10 7 4 5 3 6 6 4 5 3 3 2 2 2 4 4 3 6 6 5 5 5 4 4 5 5 4 5 4 3">
-        <div class="week-top">
-          <div class="week-readout">
-            <span class="week-time" id="week-time">Thu 18 Jun · 00:00</span>
-            <span class="week-od" id="week-od">25 Westbound</span>
-          </div>
-          <div class="week-wind">
-            <div class="compass large"><span>N</span><svg class="needle" id="week-needle" viewBox="-50 -50 100 100"><path d="M0 34V-30M-11 -18L0 -32L11 -18"/></svg></div>
-            <div><span class="week-kt"><b id="week-kt">0</b> kt</span><span class="readout-label">from <b id="week-from">0°</b></span></div>
-          </div>
-          <div class="week-count"><b id="week-changes">0</b><span class="readout-label">changes so far</span></div>
+        <div class="week-mode" role="group" aria-label="What the airport shows">
+          <button type="button" data-mode="real" aria-pressed="true">Replay the real week</button>
+          <button type="button" data-mode="sim" aria-pressed="false">Set the wind yourself</button>
         </div>
-        <svg class="week-chart" id="week-chart" viewBox="0 0 168 46" preserveAspectRatio="none" aria-hidden="true">
-          <path class="wind-area" id="week-area"/>
-          <g id="week-bands"></g>
-          <g id="week-days"></g>
-          <rect class="future" id="week-future" x="0" y="0" width="168" height="46"/>
-          <line class="playhead" id="week-playhead" x1="0" x2="0" y1="0" y2="46"/>
-        </svg>
-        <div class="week-axis" id="week-axis" aria-hidden="true"></div>
-        <div class="week-controls">
-          <button class="play" id="week-play" type="button" aria-label="Play the week"><svg class="icon"><use href="#i-play"/></svg></button>
-          <input id="week-scrub" type="range" min="0" max="167" value="0" aria-label="Hour of the week" aria-valuetext="Thursday 18 June, 00:00, 25 Westbound">
-          <ul class="legend"><li><i class="w"></i>25 Westbound</li><li><i class="e"></i>07 Eastbound</li><li><i class="wind"></i>Wind speed</li></ul>
+        <div class="week-stage airport-3d" role="img" aria-label="3D view of Frankfurt Airport on satellite imagery, showing the wind and the runway directions for the selected hour or for the wind you set.">
+          <div class="airport-map"></div><canvas class="wind-field"></canvas><div class="airport-labels"></div>
         </div>
-        <p class="caption">Times in Frankfurt local time. Wind: DWD station 01420, ten-minute measurement at the top of each hour. Direction: public DFLD half-hour displays, a provisional stand-in for the directions actually flown.</p>
+        <div class="week-real">
+          <div class="week-top">
+            <div class="week-readout">
+              <span class="week-time" id="week-time">Thu 18 Jun · 00:00</span>
+              <span class="week-od" id="week-od">25 Westbound</span>
+            </div>
+            <div class="week-wind">
+              <div class="compass large"><span>N</span><svg class="needle" id="week-needle" viewBox="-50 -50 100 100"><path d="M0 34V-30M-11 -18L0 -32L11 -18"/></svg></div>
+              <div><span class="week-kt"><b id="week-kt">0</b> kt</span><span class="readout-label">from <b id="week-from">0°</b></span></div>
+            </div>
+            <div class="week-count"><b id="week-changes">0</b><span class="readout-label">changes so far</span></div>
+          </div>
+          <svg class="week-chart" id="week-chart" viewBox="0 0 168 46" preserveAspectRatio="none" aria-hidden="true">
+            <path class="wind-area" id="week-area"/>
+            <g id="week-bands"></g>
+            <g id="week-days"></g>
+            <rect class="future" id="week-future" x="0" y="0" width="168" height="46"/>
+            <line class="playhead" id="week-playhead" x1="0" x2="0" y1="0" y2="46"/>
+          </svg>
+          <div class="week-axis" id="week-axis" aria-hidden="true"></div>
+          <div class="week-controls">
+            <button class="play" id="week-play" type="button" aria-label="Play the week"><svg class="icon"><use href="#i-play"/></svg></button>
+            <input id="week-scrub" type="range" min="0" max="167" value="0" aria-label="Hour of the week" aria-valuetext="Thursday 18 June, 00:00, 25 Westbound">
+            <ul class="legend"><li><i class="w"></i>25 Westbound</li><li><i class="e"></i>07 Eastbound</li><li><i class="wind"></i>Wind speed</li></ul>
+          </div>
+          <p class="caption">Times in Frankfurt local time. Wind: DWD station 01420, ten-minute measurement at the top of each hour. Direction: public DFLD half-hour displays, a provisional stand-in for the directions actually flown.</p>
+        </div>
+        <div class="week-sim" hidden>
+          <div class="sim-top">
+            <div class="sim-result" aria-live="polite">
+              <span class="week-od" id="sim-od">25 Westbound</span>
+              <p id="sim-why"></p>
+            </div>
+            <div class="sim-sliders">
+              <label for="sim-from"><span class="readout-label">Wind from <b id="sim-from-out">250°</b></span></label>
+              <input id="sim-from" type="range" min="0" max="350" step="10" value="250">
+              <label for="sim-kt"><span class="readout-label">Wind speed <b id="sim-kt-out">12 kt</b></span></label>
+              <input id="sim-kt" type="range" min="0" max="45" step="1" value="12">
+            </div>
+          </div>
+          <div class="sim-presets" role="group" aria-label="Examples">
+            <button type="button" data-from="250" data-kt="12">Typical westerly</button>
+            <button type="button" data-from="90" data-kt="20">Brief example: 090° · 20 kt</button>
+            <button type="button" data-from="330" data-kt="20">Taunus north wind: 330° · 20 kt</button>
+            <button type="button" data-from="160" data-kt="45">Gale across the runways</button>
+          </div>
+          <dl class="sim-checks">
+            <div><dt>Landing tailwind on 25 / 07</dt><dd id="sim-landing"></dd></div>
+            <div><dt>Runway 18 tailwind</dt><dd id="sim-18"></dd></div>
+            <div><dt>Crosswind on 07/25 · 18</dt><dd id="sim-cross"></dd></div>
+          </dl>
+          <p class="caption">Applies the challenge's Section 3 baseline: landings need under 10 kt tailwind, departures under 15 kt, and crosswind above 40 kt closes a runway. A small tailwind is tolerated for 30 minutes; a wind you leave in place counts as persisting. Gusts are not modelled here, and this is weather suitability, not an official runway status.</p>
+        </div>
       </div>
     </section>
 

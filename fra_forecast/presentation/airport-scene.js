@@ -10,7 +10,7 @@ const RUNWAYS={ // [west/north end, east/south end]
   '07R/25L':[[-1345,603],[2398,-780]],'18':[[-1935,-128],[-1909,3816]],
 };
 // Same roles and colours as the map view: per the brief, 07L/25R and 07R/25L land, 07C/25C and 18 depart.
-const LANDING='#63d6ff',DEPARTURE='#ffffff',SOUTH='#69df9b';
+const LANDING='#63d6ff',DEPARTURE='#ffffff',SOUTH='#69df9b',CLOSED='#ff8a7a';
 const role=name=>name==='18'?SOUTH:name==='07C/25C'?DEPARTURE:LANDING;
 const FLIGHTS=[{runway:'07L/25R',land:true,start:1.6,length:7},{runway:'07C/25C',land:false,start:2.4,length:6.8},
   {runway:'07R/25L',land:true,start:3.8,length:7},{runway:'18',land:false,start:4.6,length:6.6}];
@@ -24,7 +24,6 @@ const PARTS=[
   [[[-13,.35],[-19.5,.35],[-19.5,-.35],[-13,-.35]],4,10],
 ];
 const clamp=v=>Math.min(1,Math.max(0,v));
-const smooth=v=>v*v*(3-2*v);
 
 function ends(name,westbound) {
   const [a,b]=RUNWAYS[name];
@@ -72,24 +71,33 @@ export function startScene(container,wind,labels,options) {
     const tag=document.createElement('div');tag.className='aircraft-runway-label';tag.append(document.createElement('span'));labels.append(tag);
     return {name,tag};
   });
-  let frame=0,phase=-1,begin=0,last=0,ready=false;
+  let frame=0,key='',loopStart=0,begin=0,last=0,ready=false,vx=0,vy=0;
   // Portrait screens look east along the runways so they fill the tall frame.
   const heading=()=>container.clientWidth<container.clientHeight?62:-18;
   const particles=Array.from({length:220},()=>({x:Math.random(),y:Math.random(),age:Math.random()*3}));
   const context=wind.getContext('2d');
 
   const draw=now=>{
-    if(!begin)begin=last=now;
+    const first=!begin;
+    if(first)begin=last=now;
     if(options.paused?.()){begin+=now-last;last=now;frame=requestAnimationFrame(draw);return;} // hold the clock while off-screen
-    const t=options.still?7.5:(now-begin)/1000,cycle=Math.floor(t/PHASE)%2,local=t%PHASE,westbound=cycle===0;
-    if(cycle!==phase){
-      phase=cycle;options.onPhase(westbound);
+    const t=options.still?7.5:(now-begin)/1000,dt=Math.min(.05,(now-last)/1000);last=now;
+    // An outside wind (week replay, simulator) or the built-in loop: 12 s westbound, then 12 s eastbound.
+    const westLoop=Math.floor(t/PHASE)%2===0;
+    const state=options.control?.()??{from:westLoop?250:70,kt:12,od:westLoop?'25':'07',rwy18:true};
+    const westbound=state.od!=='07',open=name=>name==='18'?state.rwy18:state.od!==null;
+    if(`${state.od}|${state.rwy18}`!==key){
+      key=`${state.od}|${state.rwy18}`;
+      loopStart=options.control?t:Math.floor(t/PHASE)*PHASE; // traffic restarts in the new configuration
+      options.onPhase?.(westbound);
       map.getSource('runways').setData({type:'FeatureCollection',features:Object.keys(RUNWAYS).map(name=>(
-        {type:'Feature',properties:{color:role(name)},geometry:{type:'LineString',coordinates:RUNWAYS[name].map(([x,y])=>lngLat(x,y))}}))});
+        {type:'Feature',properties:{color:open(name)?role(name):CLOSED},geometry:{type:'LineString',coordinates:RUNWAYS[name].map(([x,y])=>lngLat(x,y))}}))});
     }
+    const local=options.still?7.5:(t-loopStart)%PHASE;
     const moving=[],shadows=[];
-    // Chevrons slide along each runway in the direction aircraft use it.
+    // Chevrons slide along each open runway in the direction aircraft use it.
     for(const name of Object.keys(RUNWAYS)){
+      if(!open(name))continue;
       const [from,to]=ends(name,westbound),len=Math.hypot(to[0]-from[0],to[1]-from[1]),ux=(to[0]-from[0])/len,uy=(to[1]-from[1])/len;
       for(let k=0;k<4;k++){
         const s=((k/4+local*.06)%1)*len;
@@ -97,7 +105,7 @@ export function startScene(container,wind,labels,options) {
       }
     }
     FLIGHTS.forEach(f=>{
-      const state=flight(f,westbound,local);
+      const state=open(f.runway)&&flight(f,westbound,local);
       if(!state||state.fade<.02)return;
       const lift=state.alt*CLIMB;
       for(const [shape,bottom,top] of PARTS)
@@ -114,14 +122,16 @@ export function startScene(container,wind,labels,options) {
       const at=name==='18'?.45:name==='07C/25C'?.3:0,point=map.project(lngLat(from[0]+(to[0]-from[0])*at,from[1]+(to[1]-from[1])*at));
       // Landings label above the threshold, departures below, so the parallel runway labels do not collide.
       tag.style.transform=`translate(${point.x}px,${point.y}px) translate(${name==='18'?'14px,-50%':`-50%,${role(name)===LANDING?'-150%':'50%'}`})`;
-      tag.firstElementChild.textContent=`${label} · ${name==='18'||name==='07C/25C'?'Departure':'Landing'}`;
+      tag.firstElementChild.textContent=`${label} · ${!open(name)?'Closed':name==='18'||name==='07C/25C'?'Departure':'Landing'}`;
+      tag.classList.toggle('is-closed',!open(name));
     }
     // Wind streaks travel with the wind, converted to screen direction for the current camera.
-    const mix=smooth(clamp(local/2.4)),angle=dir=>dir*Math.PI/180;
-    const before=westbound?250:70,after=westbound?70:250; // travel bearing: wind from 250° moves towards 070°
-    const vx=Math.sin(angle(before))*(1-mix)+Math.sin(angle(after))*mix,vy=-Math.cos(angle(before))*(1-mix)-Math.cos(angle(after))*mix;
+    // Air travels away from where the wind comes from; a reversal eases through calm.
+    const travel=(state.from+180)*Math.PI/180,strength=Math.min(state.kt,45)/12;
+    const tx=Math.sin(travel)*strength,ty=-Math.cos(travel)*strength,ease=first||options.still?1:1-Math.exp(-dt*(options.control?4:1.2));
+    vx+=(tx-vx)*ease;vy+=(ty-vy)*ease;
     const origin=map.project(lngLat(0,1000)),ahead=map.project(lngLat(vx*800,1000+vy*800));
-    const sx=(ahead.x-origin.x),sy=(ahead.y-origin.y),dt=Math.min(.05,(now-last)/1000);last=now;
+    const sx=(ahead.x-origin.x),sy=(ahead.y-origin.y);
     const ratio=window.devicePixelRatio||1,w=wind.clientWidth,h=wind.clientHeight;
     if(wind.width!==Math.round(w*ratio)||wind.height!==Math.round(h*ratio)){wind.width=Math.round(w*ratio);wind.height=Math.round(h*ratio);}
     context.setTransform(ratio,0,0,ratio,0,0);
@@ -154,7 +164,9 @@ export function startScene(container,wind,labels,options) {
     frame=requestAnimationFrame(draw);
   });
   if(options.still)map.on('move',()=>requestAnimationFrame(draw)); // keep labels on the still frame
-  const resize=new ResizeObserver(()=>{map.resize();if(ready){const c=map.cameraForBounds(FRAME,{padding:options.padding(),pitch:60,bearing:map.getBearing()});if(c)map.jumpTo({center:c.center,zoom:(c.zoom??13)+.05});}});
+  let loaded=false;map.once('load',()=>{loaded=true;});
+  // Refit when the box changes; a resize during the opening move replaces it rather than waiting for it.
+  const resize=new ResizeObserver(()=>{map.resize();if(!loaded)return;const c=map.cameraForBounds(FRAME,{padding:options.padding(),pitch:60,bearing:ready?map.getBearing():heading()});if(c){map.jumpTo({center:c.center,zoom:(c.zoom??13)+.05,pitch:60,bearing:ready?map.getBearing():heading()});ready=true;}});
   resize.observe(container);
   return()=>{cancelAnimationFrame(frame);resize.disconnect();map.remove();labels.replaceChildren();};
 }

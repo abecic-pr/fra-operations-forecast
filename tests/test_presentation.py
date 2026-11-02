@@ -31,7 +31,8 @@ class PresentationTests(unittest.TestCase):
                                            ("/how-it-works/style.css", "text/css"),
                                            ("/how-it-works/page.js", "text/javascript"),
                                            ("/how-it-works/hero.js", "text/javascript"),
-                                           ("/how-it-works/airport-scene.js", "text/javascript")]:
+                                           ("/how-it-works/airport-scene.js", "text/javascript"),
+                                           ("/how-it-works/week-scene.js", "text/javascript")]:
                     with self.subTest(path=path):
                         status, mime, body = get(path)
                         self.assertEqual(status, 200)

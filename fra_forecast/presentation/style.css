@@ -48,6 +48,7 @@ main { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
 .wind-field, .airport-labels { pointer-events: none; }
 .airport-labels { overflow: hidden; }
 .aircraft-runway-label { position: absolute; left: 0; top: 0; white-space: nowrap; }
+.aircraft-runway-label.is-closed span { background: #5a2420e6; }
 .aircraft-runway-label span { font-size: 10px; font-weight: 650; background: #18332bd9; color: #fff; padding: 4px 7px; border-radius: 7px; box-shadow: 0 1px 5px #0004; }
 .airport-map .maplibregl-ctrl-attrib { background: #34413fc4; color: #c3cfca; font-size: 10px; }
 .airport-map .maplibregl-ctrl-attrib a { color: #f2f7f7; }
@@ -111,6 +112,29 @@ h2 { font-size: clamp(34px, 5vw, 56px); line-height: 1.06; letter-spacing: -.04e
 .split-bar .e { background: var(--east); }
 
 /* A real week: readout, chart and scrubber move together. */
+.week-mode { display: inline-flex; gap: 4px; padding: 4px; margin-bottom: 18px; border-radius: 20px; background: #ffffff12; }
+.week-mode button, .sim-presets button { min-height: 40px; padding: 0 16px; border: 0; border-radius: 16px; background: transparent; color: var(--muted); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+.week-mode button[aria-pressed="true"] { background: var(--ink); color: var(--canvas); }
+.week .week-stage { position: relative; inset: auto; height: clamp(320px, 42vw, 480px); margin: 0 0 24px; border-radius: 18px; overflow: hidden; background: #26302f; }
+.week[data-od="closed"] .week-od { color: #ff8a7a; }
+/* Simulator: controls sit beside the airport on wide screens, so the reader sees the effect while dragging. */
+@media (min-width: 900px) {
+  .week[data-mode="sim"] { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(280px, 1fr); column-gap: 28px; align-items: start; }
+  .week[data-mode="sim"] .week-mode { grid-column: 1 / -1; justify-self: start; }
+  .week[data-mode="sim"] .week-stage { margin: 0; height: clamp(420px, 40vw, 520px); }
+  .week[data-mode="sim"] .sim-checks { grid-template-columns: 1fr; gap: 10px; }
+}
+.sim-top { display: grid; gap: 18px; align-items: start; }
+#sim-why { margin-top: 8px; color: var(--muted); max-width: 46ch; }
+.sim-sliders { display: grid; gap: 6px; }
+.sim-sliders input { width: 100%; margin: 0 0 12px; accent-color: var(--lime); min-height: 32px; }
+.sim-presets { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.sim-presets button { min-height: 36px; background: #ffffff12; color: var(--ink); font-weight: 500; }
+.sim-presets button:hover, .week-mode button:hover { background: #ffffff24; }
+.week-mode button[aria-pressed="true"]:hover { background: var(--ink); }
+.sim-checks { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin: 22px 0 0; padding-top: 18px; border-top: 1px solid #ffffff1f; }
+.sim-checks dt { color: var(--muted); font-size: 13px; }
+.sim-checks dd { margin: 4px 0 0; font-weight: 600; font-variant-numeric: tabular-nums; }
 .week-top { display: grid; grid-template-columns: 1.3fr 1fr auto; align-items: center; gap: 24px; }
 .week-time { display: block; color: var(--muted); font-size: 15px; font-variant-numeric: tabular-nums; }
 .week-od { display: block; margin-top: 6px; font-size: clamp(30px, 4vw, 46px); font-weight: 650; letter-spacing: -.035em; color: var(--west); transition: color .4s var(--ease); }
@@ -207,11 +231,14 @@ footer { display: flex; justify-content: space-between; gap: 16px; max-width: 11
   .grid.four, .grid.three { grid-template-columns: repeat(2, 1fr); }
   .grid.two, .status-list, .how { grid-template-columns: 1fr; }
   .week-top { grid-template-columns: 1fr auto; }
+  .sim-checks { grid-template-columns: 1fr; }
+  .week-mode { display: flex; }
+  .week-mode button { flex: 1; padding: 0 10px; }
   .week-wind { grid-row: 2; }
 }
 @media (max-width: 760px) {
   .scene { display: flex; flex-direction: column; height: auto; min-height: 0; padding: 84px 16px 96px; }
-  .airport-3d { position: relative; inset: auto; order: 1; height: 380px; margin: 0 -16px; width: calc(100% + 32px); }
+  .scene .airport-3d { position: relative; inset: auto; order: 1; height: 380px; margin: 0 -16px; width: calc(100% + 32px); }
   .readout { position: relative; inset: auto; order: 2; align-self: stretch; margin-top: -8px; }
   .scene-copy { position: relative; inset: auto; order: 3; width: auto; margin-top: 12px; padding: 26px 22px; }
 }
