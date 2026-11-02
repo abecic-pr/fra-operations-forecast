@@ -27,6 +27,8 @@ def make_handler(data_dir, *, origin_scheme="http", refresh_after_seconds=None):
         "/how-it-works/": (presentation / "index.html", "text/html; charset=utf-8"),
         "/how-it-works/style.css": (presentation / "style.css", "text/css; charset=utf-8"),
         "/how-it-works/page.js": (presentation / "page.js", "text/javascript; charset=utf-8"),
+        "/how-it-works/hero.js": (presentation / "hero.js", "text/javascript; charset=utf-8"),
+        "/how-it-works/airport-scene.js": (presentation / "airport-scene.js", "text/javascript; charset=utf-8"),
         "/api/traffic": (data_dir / "traffic.json", "application/json"),
         "/api/forecast": (data_dir / "forecast.json", "application/json"),
         "/api/sources": (data_dir / "sources.json", "application/json"),

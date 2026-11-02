@@ -6,8 +6,12 @@
   <meta name="theme-color" content="#1c2925">
   <meta name="description" content="How FRA Operations Forecast uses machine learning to forecast Frankfurt Airport's wind and operating direction up to 48 hours ahead.">
   <title>How our ML works · FRA Operations Forecast</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@6.12.0/dist/maplibre-gl.css">
   <link rel="stylesheet" href="/how-it-works/style.css">
+  <!-- Same pinned MapLibre as the app's package.json; the 3D scene module is shared with the app's loading screen. -->
+  <script type="importmap">{"imports":{"maplibre-gl":"https://cdn.jsdelivr.net/npm/maplibre-gl@6.12.0/dist/maplibre-gl.mjs"}}</script>
   <script src="/how-it-works/page.js" defer></script>
+  <script src="/how-it-works/hero.js" type="module"></script>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to content</a>
@@ -31,30 +35,9 @@
   <main id="main">
     <!-- Focal moment: the wind swings, and all three parallel runways turn around together. -->
     <section class="scene" id="scene" aria-labelledby="title" data-od="25">
-      <canvas class="wind-field" aria-hidden="true"></canvas>
-      <svg class="airport" viewBox="-3900 -1700 6900 5900" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Illustration of Frankfurt Airport's four runways. As the wind turns from west to east, the three parallel runways switch together from westbound 25 to eastbound 07, while Runway 18 keeps departing south.">
-        <defs>
-          <marker id="head" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="2.6" markerHeight="2.6" orient="auto"><path d="M1 1L9 5L1 9" fill="none" stroke="context-stroke" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></marker>
-        </defs>
-        <path class="boundary" d="M-1250 1449L-1233 4154L-1364 4290L-1664 4293L-1803 4126L-1823 1484L-1735 1470L-1735 1382L-1943 1325L-2022 1169L-1927 -77L-2166 -29L-2755 -315L-3750 52L-3955 10L-4025 -139L-4261 -50L-4032 -157L-4087 -306L-3996 -426L-3165 -736L-3088 -721L-3078 -769L-957 -1559L-601 -1545L-565 -1450L-299 -1545L-558 -1431L-512 -1304L-726 -1126L-237 -1194L-65 -1144L11 -1186L-20 -1275L712 -1546L809 -1487L972 -1540L958 -1598L1032 -1639L1094 -1582L1064 -1681L1176 -1783L1373 -1631L1439 -1656L1412 -1732L1944 -1933L2247 -1990L2262 -1896L2359 -1892L2273 -2088L2923 -2071L3277 -2051L3272 -1977L3310 -2048L3685 -2010L3825 -1928L3876 -1818L3508 -588L3379 -297L3119 -55L2999 173L3038 317L3000 394L3068 394L3090 488L2963 786L3136 882L3126 1080L2865 1456L2781 1470L2705 1321L2591 1359L2503 1310L2404 1144L1800 1374L1668 1150L1009 1390L567 1225L178 1273L-955 1166L-1294 1300L-944 1182L-910 1255L-828 1216L-803 1263L-970 1376Z"/>
-        <path class="terminals" d="M597 588L604 607L639 595L632 575ZM2162 455L2181 416L2159 454L2097 425L2106 381L2094 423L2010 385L2019 340L2007 383L1926 346L1934 301L1922 344L1839 306L1847 260L1835 304L1761 270L1770 224L1758 268L1684 250L1656 173L1681 251L1655 309L1681 259L1706 270L1700 283L1742 303L1724 341L1745 304L1820 339L1812 382L1823 340L1906 379L1899 422L1910 380L2005 424L1997 468L2008 425L2078 458L2070 502L2082 459L2133 483L2124 527L2136 484L2222 517L2232 495ZM2302 216L2271 227L2303 219L2323 272L2295 292L2324 276L2366 372L2387 364L2376 317L2406 306L2375 314L2360 272L2390 261L2358 269L2336 207L2366 196L2335 204L2307 128L2335 112L2306 125L2277 47L2304 29L2275 44L2228 -39L2179 -22L2226 -35L2240 50L2210 61L2241 53L2278 151L2251 171L2279 155ZM2625 343L2756 56L2724 41L2602 309L2573 371L2606 386ZM1315 -1165L999 -1048L1007 -1028L1383 -1171L1397 -1221L1379 -1248L1417 -1273L1411 -1313L1446 -1333L1444 -1380L1472 -1388L1461 -1423L1496 -1442L1510 -1504L1525 -1503L1517 -1543L1549 -1557L1542 -1597L1571 -1605L1579 -1655L1695 -1700L1679 -1723L1657 -1715L1644 -1751L1692 -1769L1635 -1780L1622 -1813L1412 -1732L1439 -1656L1402 -1637L1494 -1666L1528 -1620L1493 -1540L1465 -1533L1477 -1523L1454 -1472L1438 -1474L1451 -1444L1415 -1424L1426 -1388L1390 -1369L1401 -1334L1360 -1303L1371 -1268L1336 -1251L1347 -1242ZM2116 -1763L2035 -1796L2025 -1822L2093 -1845L2314 -1744L2323 -1763L2097 -1865L2020 -1837L1983 -1935L1830 -1891L1864 -1797L1963 -1787L1984 -1797L2016 -1767L2068 -1763L2075 -1743L2110 -1748L2155 -1726L2150 -1714L2207 -1705L2216 -1682L2233 -1700L2120 -1746ZM1455 -1538L1493 -1540L1528 -1620L1516 -1655L1481 -1667L1083 -1523L1057 -1548L969 -1516L949 -1502L958 -1477L793 -1416L808 -1376L810 -1395L863 -1414L878 -1401L872 -1417L943 -1444L950 -1428L953 -1448L1025 -1474L1031 -1458L1034 -1477L1105 -1504L1111 -1488L1114 -1507L1186 -1534L1192 -1518L1194 -1537L1254 -1559L1268 -1546L1262 -1562L1348 -1593L1413 -1583ZM1192 -1764L1161 -1743L1182 -1683L1232 -1711ZM1571 -2030L1586 -1988L1611 -1996L1596 -2037ZM2243 -1832L2231 -1801L2248 -1818L2244 -1795L2256 -1822ZM1509 -1766L1536 -1659L1527 -1614L1445 -1430L1415 -1424L1426 -1388L1390 -1369L1401 -1334L1360 -1303L1371 -1268L1336 -1251L1347 -1242L1315 -1165L1024 -1057L999 -1048L1007 -1028L1383 -1171L1397 -1221L1379 -1248L1417 -1273L1417 -1325L1446 -1333L1438 -1367L1472 -1388L1466 -1436L1496 -1442L1510 -1504L1522 -1498L1511 -1531L1546 -1551L1542 -1597L1571 -1605L1579 -1655L1695 -1700L1679 -1723L1657 -1715L1644 -1751L1691 -1774L1635 -1780L1622 -1813Z"/>
-        <g class="runways edge">
-          <path d="M-986 -1282L-3606 -305"/><path d="M-952 751L2790 -640"/><path d="M2822 -1205L-920 187"/><path d="M-1516 3986L-1542 15"/>
-        </g>
-        <g class="runways">
-          <path d="M-986 -1282L-3606 -305"/><path d="M-952 751L2790 -640"/><path d="M2822 -1205L-920 187"/><path d="M-1516 3986L-1542 15"/>
-        </g>
-        <g class="flow to-west">
-          <path pathLength="1000" d="M-986 -1282L-3606 -305"/><path pathLength="1000" d="M2790 -640L-952 751"/><path pathLength="1000" d="M2822 -1205L-920 187"/>
-        </g>
-        <g class="flow to-east">
-          <path pathLength="1000" d="M-3606 -305L-986 -1282"/><path pathLength="1000" d="M-952 751L2790 -640"/><path pathLength="1000" d="M-920 187L2822 -1205"/>
-        </g>
-        <g class="flow south"><path pathLength="1000" d="M-1542 15L-1516 3986"/></g>
-        <g class="runway-labels">
-          <text x="-2300" y="-1080">07L / 25R</text><text x="900" y="-80">07R / 25L</text><text x="1500" y="-1080">07C / 25C</text><text x="-1400" y="2300">18</text>
-        </g>
-      </svg>
+      <div class="airport-3d" role="img" aria-label="3D illustration of Frankfurt Airport on satellite imagery. As the wind turns from west to east, landings and departures on the three parallel runways switch together from westbound 25 to eastbound 07, while Runway 18 keeps departing south.">
+        <div class="airport-map"></div><canvas class="wind-field"></canvas><div class="airport-labels"></div>
+      </div>
       <div class="scene-copy glass">
         <h1 id="title">Which way will Frankfurt fly?</h1>
         <p class="lede">Our machine-learning forecast reads the wind up to 48 hours ahead and turns it into a runway outlook: the airport's operating direction, and whether Runway 18 has suitable wind.</p>
@@ -62,7 +45,7 @@
       <div class="readout glass" aria-hidden="true">
         <div class="compass"><span>N</span><svg class="needle" viewBox="-50 -50 100 100"><path d="M0 34V-30M-11 -18L0 -32L11 -18"/></svg></div>
         <div class="readout-text">
-          <span class="readout-label">Wind from <b id="scene-wind">W</b></span>
+          <span class="readout-label">Wind from <b id="scene-wind">W · 12 kt</b></span>
           <span class="flip"><b class="od-25">25 Westbound</b><b class="od-07">07 Eastbound</b></span>
           <span class="readout-label">Runway 18 departs south in both</span>
         </div>
