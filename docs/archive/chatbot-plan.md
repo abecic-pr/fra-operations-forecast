@@ -1,8 +1,8 @@
 **FRA app chatbot — implementation plan**
 
-Planned on 30 October 2026. Implementation update: the user supplied and explicitly authorized use of the hackathon key. The read-only backend is now implemented; see [the current contract](chatbot.md). The planning-time inspection below is retained as history. The teammate's UI remains outside this backend work.
+Planned on 30 October 2026. Implementation update: the user supplied and explicitly authorized use of the hackathon key. The read-only backend is now implemented; see [the current contract](../chatbot.md). The planning-time inspection below is retained as history. The teammate's UI remains outside this backend work.
 
-The user's new request is a conversational assistant that answers questions about airport conditions and upcoming flights using this app's data, with a user-supplied OpenAI API key. This is an extension to the [FraAlliance challenge](challenge/README.md). Required 48-hour forecasts, RWY18 usability probabilities, airport-wide operating direction with certainty, next probable change, unseen-data evaluation at 1/6/24 hours, model card, and jury exports retain priority within the total six-hour project budget. A chatbot does not complete missing forecast or evaluation deliverables.
+The user's new request is a conversational assistant that answers questions about airport conditions and upcoming flights using this app's data, with a user-supplied OpenAI API key. This is an extension to the [FraAlliance challenge](../challenge/README.md). Required 48-hour forecasts, RWY18 usability probabilities, airport-wide operating direction with certainty, next probable change, unseen-data evaluation at 1/6/24 hours, model card, and jury exports retain priority within the total six-hour project budget. A chatbot does not complete missing forecast or evaluation deliverables.
 
 **What the first version should answer**
 

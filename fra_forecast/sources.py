@@ -1,4 +1,4 @@
-"""Small, cached readers for the public sources verified in docs/izvori-podataka.md."""
+"""Small, cached readers for the public sources verified in docs/data-sources.md."""
 
 import csv
 import hashlib
@@ -20,6 +20,7 @@ from .domain import UTC, iso, number, parse_time
 DWD_ROOT = "https://opendata.dwd.de/climate_environment/CDC/observations_germany/climate/10_minutes"
 UNH_URL = "https://www.umwelthaus.org/fluglaerm/anwendungen-service/aktuelle-betriebsrichtung-und-prognose/"
 WIND_FIELDS = "wind_speed_10m,wind_direction_10m,wind_gusts_10m"
+LIVE_FIELDS = WIND_FIELDS + ",temperature_2m"  # temperature feeds online learning only
 LAT, LON = 50.0259, 8.5213  # DWD station, for forecast/observation alignment.
 
 
@@ -132,8 +133,23 @@ def parse_dwd_zip(body, start, end):
                 if old in row:
                     value = number(row[old])
                     result[new] = value * factor if value is not None and value >= 0 else None
+            if "TT_10" in row:
+                value = number(row["TT_10"])
+                result["temperature_c"] = value if value is not None and value > -99 else None  # DWD missing = -999
             rows.append(result)
     return rows
+
+
+def dwd_temperature(client, start, end, kinds=(("now", "now"),)):
+    """2 m air temperature at station 01420 keyed by valid time, QN 2/3 only."""
+    values = {}
+    for kind, suffix in kinds:
+        url = f"{DWD_ROOT}/air_temperature/{kind}/10minutenwerte_TU_01420_{suffix}.zip"
+        body, _ = client.get(f"dwd_air_temperature_{kind}", url)
+        for row in parse_dwd_zip(body, start, end):
+            if row.get("temperature_c") is not None and str(row.get("quality_code")) in {"2", "3"}:
+                values[row["valid_time"]] = row["temperature_c"]
+    return values
 
 
 def dwd_observations(client, start, end, include_now=True):
@@ -208,19 +224,22 @@ def parse_forecast(data, model, meta, run_at=None, availability_delay_hours=4):
                    "availability_verified": False,
                    "latitude": data.get("latitude"), "longitude": data.get("longitude")}
             for old, new in [("wind_speed_10m", "wind_speed_kt"), ("wind_direction_10m", "wind_from_deg_true"),
-                             ("wind_gusts_10m", "wind_gust_kt")]:
+                             ("wind_gusts_10m", "wind_gust_kt"), ("temperature_2m", "temperature_c")]:
+                if old == "temperature_2m" and old not in series:
+                    continue
                 values = series.get(old, [])
                 value = number(values[i]) if i < len(values) else None
-                if old != "wind_direction_10m" and value is not None and units.get(old) not in ("kn", "kt"):
-                    raise ValueError(f"Unexpected wind units: {units}")
+                expected = ("°C",) if old == "temperature_2m" else ("kn", "kt")
+                if old != "wind_direction_10m" and value is not None and units.get(old) not in expected:
+                    raise ValueError(f"Unexpected units: {units}")
                 row[new] = value
             if row["wind_speed_kt"] is not None:
                 result[block].append(row)
     return result
 
 
-def forecast(client, model, run_at=None, forecast_days=3, availability_delay_hours=4):
-    params = {"latitude": LAT, "longitude": LON, "hourly": WIND_FIELDS,
+def forecast(client, model, run_at=None, forecast_days=3, availability_delay_hours=4, fields=WIND_FIELDS):
+    params = {"latitude": LAT, "longitude": LON, "hourly": fields,
               "models": model, "wind_speed_unit": "kn", "timezone": "UTC"}
     if run_at:
         params.update(run=run_at.strftime("%Y-%m-%dT%H:%M"), forecast_days=forecast_days)
@@ -228,7 +247,7 @@ def forecast(client, model, run_at=None, forecast_days=3, availability_delay_hou
     else:
         params["forecast_hours"] = 52
         if model == "icon_d2":
-            params.update(minutely_15=WIND_FIELDS, forecast_minutely_15=196)
+            params.update(minutely_15=fields, forecast_minutely_15=196)
         base = "https://api.open-meteo.com/v1/forecast"
     data, meta = client.json(f"forecast_{model}", base + "?" + urlencode(params), immutable=bool(run_at))
     return parse_forecast(data, model, meta, run_at, availability_delay_hours)

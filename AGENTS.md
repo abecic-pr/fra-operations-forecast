@@ -64,7 +64,7 @@ wants that constraint respected throughout the project, including future chats.
 - Do not present deterministic baseline outputs as calibrated probabilities.
 - Preserve other contributors' work. Do not implement UI unless asked.
 
-Research: `docs/izvori-podataka.md` and `docs/podaci-aplikacije.md`.
+Research: `docs/data-sources.md` and `docs/app-data.md`.
 
 ## Parallel runway traffic scope
 

@@ -1,7 +1,8 @@
 {
-  "name": "aiw26",
+  "name": "fra-operations-forecast",
   "version": "0.1.0",
   "private": true,
+  "license": "UNLICENSED",
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 5173 --strictPort",
@@ -11,6 +12,7 @@
   },
   "dependencies": {
     "leaflet": "^1.9.4",
+    "maplibre-gl": "6.12.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"
   },

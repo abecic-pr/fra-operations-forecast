@@ -48,6 +48,9 @@ def main(argv=None):
     agent = commands.add_parser("forecast-agent", help="Explain the saved policy with bounded optional AI tools")
     agent.add_argument("--data-dir", type=Path, default=Path("data"))
     agent.add_argument("--question", default="Where do forecasts disagree, and why was this forecast selected?")
+    online = commands.add_parser("learn-online", help="Replay past forecasts hour by hour to warm and score the online learner")
+    online.add_argument("--data-dir", type=Path, default=Path("data"))
+    online.add_argument("--days", type=int, default=30, help="Days of archived ICON-D2 runs to replay")
     api = commands.add_parser("serve", help="Serve local forecast JSON endpoints")
     api.add_argument("--data-dir", type=Path, default=Path("data"))
     api.add_argument("--port", type=int, default=8000)
@@ -91,6 +94,17 @@ def main(argv=None):
         except (OSError, ValueError, KeyError, TypeError) as exc:
             print(f"{args.command} failed: {exc}", file=sys.stderr)
             return 1
+    if args.command == "learn-online":
+        from .online import train as train_online
+        if not 3 <= args.days <= 60:
+            parser.error("--days must be between 3 and 60")
+        try:
+            report = train_online(args.data_dir, args.days)
+        except (OSError, ValueError, KeyError) as exc:
+            print(f"Online learning replay failed: {exc}", file=sys.stderr)
+            return 1
+        print(f"Online learner warmed on {report['samples']} past forecasts; saved {args.data_dir / 'online' / 'backtest.json'}")
+        return 0
     if args.command == "refresh-departures":
         from .departures import refresh_departures
         try:

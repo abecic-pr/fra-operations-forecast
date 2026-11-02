@@ -35,4 +35,15 @@ assert.equal(Math.max(...kt), 13);
 assert.equal(Math.round(kt.reduce((a, b) => a + b) / kt.length), 5);
 assert.match(html, /about 5 kt on average, never above 13 kt/);
 assert.ok(deg.every(d => d >= 0 && d < 360));
+// The simulator's Section 3 baseline must reproduce the brief's worked examples.
+const page = readFileSync(join(__dirname, "../fra_forecast/presentation/page.js"), "utf8");
+const rules = page.slice(page.indexOf("const component ="), page.indexOf("// The 3D stage"));
+const {baseline} = vm.runInNewContext(`${rules}; ({baseline})`);
+assert.equal(baseline(90, 20, "25").od, "07", "090°/20 kt: ~19 kt tailwind on 25 forces 07");
+assert.equal(baseline(330, 20, "25").rwy18, false, "330°/20 kt: 17.3 kt tailwind closes Runway 18");
+assert.equal(baseline(330, 20, "25").od, "25", "330°/20 kt is a headwind on 25");
+assert.equal(baseline(160, 45, "25").od, null, "45 kt across 07/25 closes the parallel runways");
+assert.equal(baseline(160, 45, "25").rwy18, true);
+assert.equal(baseline(70, 5, "25").od, "07", "a persisting small tailwind turns the airport into the wind");
+assert.equal(baseline(250, 0, "07").od, "07", "calm keeps the current direction");
 console.log("presentation checks passed");

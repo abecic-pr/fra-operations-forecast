@@ -18,83 +18,7 @@ const days = $("days");
   days.append(day);
 });
 
-/* Hero: an illustrative wind that swings west → east → west; the parallel runways follow it. */
-const scene = $("scene");
-const canvas = scene.querySelector("canvas");
-const context = canvas.getContext("2d");
-const sceneNeedle = scene.querySelector(".needle");
-const loop = 16000;
-// Wind direction (from, degrees) and speed (kt) through one loop; rotations pass through south, then north.
-function sceneWind(ms) {
-  const t = ms % loop / 1000, ease = p => p < .5 ? 2 * p * p : 1 - (-2 * p + 2) ** 2 / 2;
-  if (t < 5) return {from: 250, kt: 12};
-  if (t < 8) { const p = ease((t - 5) / 3); return {from: 250 - 180 * p, kt: 12 - 7 * Math.sin(Math.PI * p)}; }
-  if (t < 13) return {from: 70, kt: 9};
-  const p = ease((t - 13) / 3); return {from: 70 - 180 * p, kt: 9 - 4 * Math.sin(Math.PI * p) + 3 * p};
-}
-let particles = [], width = 0, height = 0, ratio = 1, needleAngle = 70;
-function sizeCanvas() {
-  ratio = Math.min(2, devicePixelRatio || 1);
-  ({width, height} = scene.getBoundingClientRect());
-  canvas.width = width * ratio; canvas.height = height * ratio;
-  const count = Math.min(480, Math.round(width * height / 3000));
-  particles = Array.from({length: count}, () => ({x: Math.random() * width, y: Math.random() * height, life: Math.random() * 160}));
-}
-function drawWind(wind, steps) {
-  const bearing = (wind.from + 180) * Math.PI / 180, speed = wind.kt * .32;
-  context.setTransform(ratio, 0, 0, ratio, 0, 0);
-  context.lineWidth = 1.1;
-  context.strokeStyle = "#ffffff47";
-  context.beginPath();
-  for (const p of particles) {
-    // A gentle swirl so the field reads as air, not as parallel rails.
-    const angle = bearing + Math.sin(p.y * .006 + p.x * .002) * .22;
-    const dx = Math.sin(angle) * speed * steps, dy = -Math.cos(angle) * speed * steps;
-    context.moveTo(p.x, p.y);
-    p.x += dx; p.y += dy; p.life -= steps;
-    context.lineTo(p.x, p.y);
-    if (p.life < 0 || p.x < -20 || p.x > width + 20 || p.y < -20 || p.y > height + 20) {
-      p.x = Math.random() * width; p.y = Math.random() * height; p.life = 80 + Math.random() * 120;
-    }
-  }
-  context.stroke();
-}
-function showWind(wind) {
-  // Simplified illustration: switch once the wind has a clear tailwind component on the current direction.
-  const along25 = wind.kt * Math.cos((wind.from - 250) * Math.PI / 180);
-  const od = scene.dataset.od;
-  if (od === "25" && along25 < -2) scene.dataset.od = "07";
-  if (od === "07" && along25 > 2) scene.dataset.od = "25";
-  needleAngle = turn(needleAngle, wind.from + 180);
-  sceneNeedle.style.setProperty("--to", `${needleAngle}deg`);
-  $("scene-wind").textContent = `${compassPoint(wind.from)} · ${Math.round(wind.kt)} kt`;
-}
-sizeCanvas();
-addEventListener("resize", sizeCanvas);
-if (motion) {
-  let visible = true, clock = 0, last = 0, labelClock = 0;
-  new IntersectionObserver(([entry]) => { visible = entry.isIntersecting; }).observe(scene);
-  const frame = now => {
-    const dt = Math.min(50, now - (last || now)); last = now;
-    if (visible && !document.hidden) {
-      clock += dt;
-      const wind = sceneWind(clock);
-      context.setTransform(1, 0, 0, 1, 0, 0);
-      context.globalCompositeOperation = "destination-out";
-      context.fillStyle = "#00000030";
-      context.fillRect(0, 0, canvas.width, canvas.height);
-      context.globalCompositeOperation = "source-over";
-      drawWind(wind, dt / 16.7);
-      if (clock - labelClock > 120) { labelClock = clock; showWind(wind); }
-    }
-    requestAnimationFrame(frame);
-  };
-  requestAnimationFrame(frame);
-} else {
-  // Reduced motion: one still frame of westerly wind and westbound operation.
-  for (let i = 0; i < 6; i++) drawWind({from: 250, kt: 12}, 2);
-  showWind({from: 250, kt: 12});
-}
+/* Hero: the shared 3D airport scene is started by hero.js. */
 
 /* One real week: readout, chart, playhead and scrubber stay in step. */
 const week = $("week");
@@ -120,10 +44,30 @@ for (let d = 1; d < 7; d++) $("week-days").append(svgNode("line", {x1: d * 24, x
 $("week-axis").replaceChildren(...Array.from({length: 7}, (_, d) => Object.assign(document.createElement("span"), {textContent: label(d * 24).split(" ").slice(0, 2).join(" ")})));
 const scrub = $("week-scrub"), play = $("week-play"), weekNeedle = $("week-needle");
 let hour = 0, weekAngle = 0, playing = false, lastStep = 0, autoplayed = false;
+/* Section 3 baseline for one steady wind, as in fra_forecast.domain: tailwind/crosswind per runway heading. */
+const component = (kt, from, heading) => {
+  const a = (from - heading) * Math.PI / 180;
+  return {tail: Math.max(0, -kt * Math.cos(a)), cross: Math.abs(kt * Math.sin(a))};
+};
+function baseline(from, kt, current) {
+  const w = component(kt, from, 250), e = component(kt, from, 70), south = component(kt, from, 180);
+  const result = {w, e, south, rwy18: south.tail < 15 && south.cross <= 40};
+  if (w.cross > 40) return {...result, od: null, why: `A ${Math.round(w.cross)} kt crosswind exceeds the 40 kt limit, so the parallel runways close.`};
+  const now = current ?? (w.tail <= e.tail ? "25" : "07"), other = now === "25" ? "07" : "25";
+  const tail = now === "25" ? w.tail : e.tail;
+  if (tail >= 10) return {...result, od: other, why: `A ${Math.round(tail)} kt tailwind on ${now} reaches the 10 kt landing limit, so the airport switches at once to ${other}.`};
+  if (tail > 0.5) return {...result, od: other, why: `A ${Math.round(tail)} kt tailwind on ${now} is tolerated for up to 30 minutes. As it persists, the airport turns to ${other} for a headwind.`};
+  return {...result, od: now, why: kt < 1 ? `Calm: the airport keeps operating ${now}.` : `Aircraft on ${now} land and take off into a headwind, so nothing changes.`};
+}
+// The 3D stage (week-scene.js) reads the wind and runway state from these attributes.
+function showWind(from, kt, od, rwy18) {
+  Object.assign(week.dataset, {windFrom: from, windKt: kt, od: od ?? "closed", rwy18: rwy18 ? "open" : "closed"});
+}
+
 function setHour(next) {
   hour = Math.max(0, Math.min(167, next));
   scrub.value = hour;
-  week.dataset.od = dirs[hour] === "e" ? "07" : "25";
+  if (week.dataset.mode !== "sim") showWind(degrees[hour], speeds[hour], dirs[hour] === "e" ? "07" : "25", baseline(degrees[hour], speeds[hour], null).rwy18);
   $("week-time").textContent = label(hour);
   $("week-od").textContent = name(dirs[hour]);
   $("week-kt").textContent = speeds[hour];
@@ -142,6 +86,7 @@ function setPlaying(next) {
   const icon = playing ? "#i-pause" : hour >= 167 ? "#i-replay" : "#i-play";
   play.querySelector("use").setAttribute("href", icon);
   play.setAttribute("aria-label", playing ? "Pause" : hour >= 167 ? "Replay the week" : "Play the week");
+  if (playing && week.dataset.mode === "sim") return setPlaying(false);
   if (playing) { lastStep = performance.now(); requestAnimationFrame(advance); }
 }
 function advance(now) {
@@ -158,6 +103,78 @@ play.addEventListener("click", () => {
 });
 scrub.addEventListener("input", () => { setPlaying(false); setHour(Number(scrub.value)); });
 setHour(0);
+
+/* Set the wind yourself: the same stage, driven by the Section 3 baseline instead of the recorded week. */
+const dial = $("sim-dial"), arrow = $("sim-arrow"), ktInput = $("sim-kt");
+const compassNames = {N: "north", NE: "northeast", E: "east", SE: "southeast", S: "south", SW: "southwest", W: "west", NW: "northwest"};
+let simFrom = 250, simOd = "25", arrowAngle = 250;
+function gauge(id, kt, limit, over) {
+  const row = $(id);
+  row.querySelector(".g-value").textContent = `${Math.round(kt)} kt`;
+  row.querySelector(".g-fill").style.transform = `scaleX(${Math.min(1, kt / (limit * 1.6))})`;
+  row.classList.toggle("is-over", over);
+}
+function simulate() {
+  const kt = Number(ktInput.value), result = baseline(simFrom, kt, simOd);
+  simOd = result.od;
+  showWind(simFrom, kt, result.od, result.rwy18);
+  const point = compassPoint(simFrom), degrees = String(simFrom).padStart(3, "0");
+  $("sim-from-out").textContent = `${point} ${degrees}°`;
+  dial.setAttribute("aria-valuenow", simFrom);
+  dial.setAttribute("aria-valuetext", `From ${compassNames[point]}, ${simFrom} degrees`);
+  arrowAngle = turn(arrowAngle, simFrom);
+  arrow.style.setProperty("--r", `${arrowAngle}deg`);
+  $("sim-kt-out").textContent = `${kt} kt`;
+  ktInput.style.setProperty("--v", `${kt / 45 * 100}%`);
+  const od = $("sim-od"), next = result.od ? name(result.od === "07" ? "e" : "w") : "Parallel runways closed";
+  if (od.textContent !== next) { od.textContent = next; od.classList.remove("swap"); void od.offsetWidth; od.classList.add("swap"); }
+  $("sim-why").textContent = result.why + (result.rwy18 ? "" : ` Runway 18 closes: ${Math.round(result.south.tail) >= 15 ? `a ${Math.round(result.south.tail)} kt tailwind reaches its 15 kt departure limit` : `a ${Math.round(result.south.cross)} kt crosswind exceeds 40 kt`}.`);
+  gauge("g-25", result.w.tail, 10, result.w.tail >= 10);
+  gauge("g-07", result.e.tail, 10, result.e.tail >= 10);
+  gauge("g-18", result.south.tail, 15, result.south.tail >= 15);
+  gauge("g-cross", result.w.cross, 40, result.w.cross > 40);
+  week.querySelectorAll(".sim-presets button").forEach(button =>
+    button.setAttribute("aria-pressed", String(Number(button.dataset.from) === simFrom && Number(button.dataset.kt) === kt)));
+}
+function setFrom(degrees) {
+  simFrom = ((Math.round(degrees / 10) * 10) % 360 + 360) % 360;
+  simulate();
+}
+// Drag or click anywhere on the dial; keys step 10° (Page keys 30°).
+function fromPointer(event) {
+  const box = dial.getBoundingClientRect();
+  setFrom(Math.atan2(event.clientX - box.left - box.width / 2, box.top + box.height / 2 - event.clientY) * 180 / Math.PI);
+}
+dial.addEventListener("pointerdown", event => { dial.setPointerCapture(event.pointerId); dial.classList.add("dragging"); fromPointer(event); });
+dial.addEventListener("pointermove", event => { if (dial.hasPointerCapture(event.pointerId)) fromPointer(event); });
+dial.addEventListener("pointerup", () => dial.classList.remove("dragging"));
+dial.addEventListener("pointercancel", () => dial.classList.remove("dragging"));
+dial.addEventListener("keydown", event => {
+  const step = {ArrowRight: 10, ArrowUp: 10, ArrowLeft: -10, ArrowDown: -10, PageUp: 30, PageDown: -30}[event.key];
+  if (step !== undefined) setFrom(simFrom + step);
+  else if (event.key === "Home") setFrom(0);
+  else if (event.key === "End") setFrom(350);
+  else return;
+  event.preventDefault();
+});
+function setMode(mode) {
+  week.dataset.mode = mode;
+  week.querySelectorAll(".week-mode button").forEach(button => button.setAttribute("aria-pressed", String(button.dataset.mode === mode)));
+  week.querySelector(".week-real").hidden = mode === "sim";
+  week.querySelector(".week-sim").hidden = mode !== "sim";
+  $("sim-controls").hidden = mode !== "sim";
+  if (mode === "sim") { setPlaying(false); simulate(); } else setHour(hour);
+  week.dispatchEvent(new Event("modechange")); // the 3D stage reframes around the controls
+}
+week.querySelectorAll(".week-mode button").forEach(button => button.addEventListener("click", () => setMode(button.dataset.mode)));
+week.querySelectorAll(".sim-presets button").forEach(button => button.addEventListener("click", () => {
+  ktInput.value = button.dataset.kt; setFrom(Number(button.dataset.from));
+}));
+ktInput.addEventListener("input", simulate);
+// A shared link to /how-it-works#set-the-wind opens straight into the simulator.
+const openFromLink = () => { if (location.hash === "#set-the-wind") setMode("sim"); };
+addEventListener("hashchange", openFromLink);
+openFromLink();
 
 /* How it works: draw forecast, then correction, then corrected wind, lighting each step. */
 const how = $("how");
@@ -197,3 +214,14 @@ if (motion) {
   // Fallback for first-screen content when observer callbacks are throttled (hidden or background tabs).
   setTimeout(() => reveals.filter(node => !node.classList.contains("in") && node.getBoundingClientRect().top < innerHeight).forEach(enter), 900);
 }
+
+// Latest hourly check from the online learner; the static text stays if the API is absent.
+const describe = w => Number.isFinite(w?.wind_speed_kt)
+  ? `${w.wind_speed_kt.toFixed(1)} kt${Number.isFinite(w.wind_from_deg_true) ? ` from ${Math.round(w.wind_from_deg_true)}°` : ", calm"}${Number.isFinite(w.temperature_c) ? `, ${w.temperature_c.toFixed(1)} °C` : ""}`
+  : "unavailable";
+fetch("/api/online-learning", {cache: "no-store"}).then(r => r.ok ? r.json() : null).then(report => {
+  const last = report?.recent?.at(-1);
+  if (!last) return;
+  const time = new Date(last.valid_time).toLocaleTimeString("en-GB", {timeZone: "Europe/Berlin", hour: "2-digit", minute: "2-digit"});
+  $("online-live").textContent = `Latest check, ${time}: one hour earlier we forecast ${describe(last.learned)} (raw model: ${describe(last.raw)}). The airport measured ${describe(last.actual)}. ${report.live.verified_forecasts_all_leads.toLocaleString("en-GB")} forecasts checked so far.`;
+}).catch(() => {});
