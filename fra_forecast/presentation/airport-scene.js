@@ -166,7 +166,10 @@ export function startScene(container,wind,labels,options) {
   if(options.still)map.on('move',()=>requestAnimationFrame(draw)); // keep labels on the still frame
   let loaded=false;map.once('load',()=>{loaded=true;});
   // Refit when the box changes; a resize during the opening move replaces it rather than waiting for it.
-  const resize=new ResizeObserver(()=>{map.resize();if(!loaded)return;const c=map.cameraForBounds(FRAME,{padding:options.padding(),pitch:60,bearing:ready?map.getBearing():heading()});if(c){map.jumpTo({center:c.center,zoom:(c.zoom??13)+.05,pitch:60,bearing:ready?map.getBearing():heading()});ready=true;}});
+  const refit=animate=>{map.resize();if(!loaded)return;const c=map.cameraForBounds(FRAME,{padding:options.padding(),pitch:60,bearing:ready?map.getBearing():heading()});if(c){const view={center:c.center,zoom:(c.zoom??13)+.05,pitch:60,bearing:ready?map.getBearing():heading()};if(animate===true&&!options.still)map.easeTo({...view,duration:900});else map.jumpTo(view);ready=true;}};
+  const resize=new ResizeObserver(refit);
   resize.observe(container);
-  return()=>{cancelAnimationFrame(frame);resize.disconnect();map.remove();labels.replaceChildren();};
+  const stop=()=>{cancelAnimationFrame(frame);resize.disconnect();map.remove();labels.replaceChildren();};
+  stop.refit=()=>refit(true);
+  return stop;
 }

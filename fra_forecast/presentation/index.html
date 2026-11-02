@@ -39,7 +39,7 @@
       <div class="airport-3d" role="img" aria-label="3D illustration of Frankfurt Airport on satellite imagery. As the wind turns from west to east, landings and departures on the three parallel runways switch together from westbound 25 to eastbound 07, while Runway 18 keeps departing south.">
         <div class="airport-map"></div><canvas class="wind-field"></canvas><div class="airport-labels"></div>
       </div>
-      <div class="scene-copy glass">
+      <div class="scene-copy">
         <h1 id="title">Which way will Frankfurt fly?</h1>
         <p class="lede">Our machine-learning forecast reads the wind up to 48 hours ahead and turns it into a runway outlook: the airport's operating direction, and whether Runway 18 has suitable wind.</p>
       </div>
@@ -82,12 +82,42 @@
       <h2 id="week-title" class="reveal">One real week,<br>hour by hour.</h2>
       <p class="intro reveal">18–24 June 2026 was one of the busiest weeks in our records. Winds stayed light (about 5 kt on average, never above 13 kt), yet the airport changed direction 15 times.</p>
       <div class="panel glass reveal week" id="week" data-start="2026-06-17T22:00:00Z" data-dirs="wwwwwweeeeewwwwwwwwwwwwwwwwwewweeewwwwwwwwwwwwwweeeewwwwwwwwwwwwwwwwwwwwwwwwwwweeeeeeeeewwwwweeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeewweeeeeeeewwwweeeeeeeeeeeeeeeeeeee" data-deg="70 60 40 80 60 70 50 50 40 190 250 190 230 240 220 280 280 210 180 230 120 130 130 60 50 50 50 40 50 10 60 110 80 100 250 200 200 230 220 190 240 210 180 250 110 40 0 60 60 160 270 90 60 320 80 100 40 170 200 200 190 190 190 220 210 200 220 320 150 0 330 0 40 90 60 50 280 120 310 70 60 160 80 80 80 150 240 290 260 280 320 330 30 10 10 30 30 50 30 40 70 50 50 40 50 30 60 10 30 10 20 10 10 40 30 30 30 30 20 20 20 30 30 50 50 30 50 60 40 30 20 40 40 30 340 40 0 40 30 20 70 50 50 20 20 40 50 70 60 70 80 80 40 50 20 20 20 20 40 310 40 30 20 30 40 60 50 40" data-kt="2 3 3 2 3 2 3 5 3 2 3 3 5 9 8 5 10 5 2 3 3 3 3 3 3 3 4 4 3 4 3 6 3 3 2 4 5 5 6 7 6 6 3 4 4 2 10 3 6 5 2 2 4 5 5 5 1 4 4 9 9 10 8 9 5 6 6 5 1 4 7 5 4 3 2 2 4 2 13 5 7 6 5 5 5 3 4 3 3 6 5 6 7 7 6 10 6 6 7 7 4 4 4 8 7 5 5 7 8 7 4 9 9 9 8 8 10 9 8 8 8 9 7 7 6 7 5 6 7 5 6 7 6 4 4 7 9 7 10 7 4 5 3 6 6 4 5 3 3 2 2 2 4 4 3 6 6 5 5 5 4 4 5 5 4 5 4 3">
-        <div class="week-mode" role="group" aria-label="What the airport shows">
-          <button type="button" data-mode="real" aria-pressed="true">Replay the real week</button>
-          <button type="button" data-mode="sim" aria-pressed="false">Set the wind yourself</button>
-        </div>
+        <div class="week-viewport">
         <div class="week-stage airport-3d" role="img" aria-label="3D view of Frankfurt Airport on satellite imagery, showing the wind and the runway directions for the selected hour or for the wind you set.">
-          <div class="airport-map"></div><canvas class="wind-field"></canvas><div class="airport-labels"></div>
+            <div class="airport-map"></div><canvas class="wind-field"></canvas><div class="airport-labels"></div>
+          </div>
+          <div class="week-mode glass" role="group" aria-label="What the airport shows">
+            <span class="mode-pill" aria-hidden="true"></span>
+            <button type="button" data-mode="real" aria-pressed="true">Real week</button>
+            <button type="button" data-mode="sim" aria-pressed="false">Set the wind</button>
+          </div>
+          <div class="sim-card glass" id="sim-controls" hidden>
+            <div class="dial" id="sim-dial" role="slider" tabindex="0" aria-label="Wind direction, where the wind comes from" aria-valuemin="0" aria-valuemax="350" aria-valuenow="250" aria-valuetext="From west-southwest, 250 degrees">
+              <svg viewBox="-100 -100 200 200" aria-hidden="true">
+                <circle class="dial-face" r="92"/>
+                <g class="dial-ticks"><line class="major" x1="0" y1="-90" x2="0" y2="-82" transform="rotate(0)"/><line class="minor" x1="0" y1="-90" x2="0" y2="-86" transform="rotate(10)"/><line class="minor" x1="0" y1="-90" x2="0" y2="-86" transform="rotate(20)"/><line class="major" x1="0" y1="-90" x2="0" y2="-82" transform="rotate(30)"/><line class="minor" x1="0" y1="-90" x2="0" y2="-86" transform="rotate(40)"/><line class="minor" x1="0" y1="-90" x2="0" y2="-86" transform="rotate(50)"/><line class="major" x1="0" y1="-90" x2="0" y2="-82" transform="rotate(60)"/><line class="minor" x1="0" y1="-90" x2="0" y2="-86" transform="rotate(70)"/><line class="minor" x1="0" y1="-90" x2="0" y2="-86" transform="rotate(80)"/><line class="major" x1="0" y1="-90" x2="0" y2="-82" transform="rotate(90)"/><line class="minor" x1="0" y1="-90" x2="0" y2="-86" transform="rotate(100)"/><line class="minor" x1="0" y1="-90" x2="0" y2="-86" transform="rotate(110)"/><line class="major" x1="0" y1="-90" x2="0" y2="-82" transform="rotate(120)"/><line class="minor" x1="0" y1="-90" x2="0" y2="-86" transform="rotate(130)"/><line class="minor" x1="0" y1="-90" x2="0" y2="-86" transform="rotate(140)"/><line class="major" x1="0" y1="-90" x2="0" y2="-82" transform="rotate(150)"/><line class="minor" x1="0" y1="-90" x2="0" y2="-86" transform="rotate(160)"/><line class="minor" x1="0" y1="-90" x2="0" y2="-86" transform="rotate(170)"/><line class="major" x1="0" y1="-90" x2="0" y2="-82" transform="rotate(180)"/><line class="minor" x1="0" y1="-90" x2="0" y2="-86" transform="rotate(190)"/><line class="minor" x1="0" y1="-90" x2="0" y2="-86" transform="rotate(200)"/><line class="major" x1="0" y1="-90" x2="0" y2="-82" transform="rotate(210)"/><line class="minor" x1="0" y1="-90" x2="0" y2="-86" transform="rotate(220)"/><line class="minor" x1="0" y1="-90" x2="0" y2="-86" transform="rotate(230)"/><line class="major" x1="0" y1="-90" x2="0" y2="-82" transform="rotate(240)"/><line class="minor" x1="0" y1="-90" x2="0" y2="-86" transform="rotate(250)"/><line class="minor" x1="0" y1="-90" x2="0" y2="-86" transform="rotate(260)"/><line class="major" x1="0" y1="-90" x2="0" y2="-82" transform="rotate(270)"/><line class="minor" x1="0" y1="-90" x2="0" y2="-86" transform="rotate(280)"/><line class="minor" x1="0" y1="-90" x2="0" y2="-86" transform="rotate(290)"/><line class="major" x1="0" y1="-90" x2="0" y2="-82" transform="rotate(300)"/><line class="minor" x1="0" y1="-90" x2="0" y2="-86" transform="rotate(310)"/><line class="minor" x1="0" y1="-90" x2="0" y2="-86" transform="rotate(320)"/><line class="major" x1="0" y1="-90" x2="0" y2="-82" transform="rotate(330)"/><line class="minor" x1="0" y1="-90" x2="0" y2="-86" transform="rotate(340)"/><line class="minor" x1="0" y1="-90" x2="0" y2="-86" transform="rotate(350)"/></g>
+                <g class="dial-points"><text y="-66">N</text><text x="68" y="4">E</text><text y="74">S</text><text x="-68" y="4">W</text></g>
+                <!-- Runway layout in miniature, same roles and colours as the 3D view. -->
+                <g class="dial-runways" transform="rotate(-20)">
+                  <line class="land" x1="-46" y1="-14" x2="-14" y2="-14"/><line class="depart" x1="-14" y1="-2" x2="34" y2="-2"/><line class="land" x1="-14" y1="9" x2="34" y2="9"/>
+                </g>
+                <line class="dial-18" x1="-22" y1="-4" x2="-21" y2="40"/>
+                <g class="dial-wind" id="sim-arrow"><line x1="0" y1="-80" x2="0" y2="-50"/><path d="M-6 -57L0 -47L6 -57"/><circle class="dial-knob" cy="-90" r="9"/></g>
+              </svg>
+            </div>
+            <p class="dial-out"><span>Wind from</span><b id="sim-from-out">W 250°</b></p>
+            <div class="speed">
+              <label class="readout-label" for="sim-kt">Wind speed <b id="sim-kt-out">12 kt</b></label>
+              <input id="sim-kt" type="range" min="0" max="45" step="1" value="12" style="--v: 26.7%">
+              <div class="speed-marks" aria-hidden="true"><span style="--at: .222">10</span><span style="--at: .333">15</span><span style="--at: .889">40</span></div>
+            </div>
+            <div class="sim-presets" role="group" aria-label="Examples">
+              <button type="button" data-from="250" data-kt="12" aria-pressed="false"><svg class="chip-arrow" viewBox="-8 -8 16 16" style="--r: 250deg" aria-hidden="true"><path d="M0 -6V5M-4 1L0 5L4 1"/></svg>Westerly</button>
+              <button type="button" data-from="90" data-kt="20" aria-pressed="false"><svg class="chip-arrow" viewBox="-8 -8 16 16" style="--r: 90deg" aria-hidden="true"><path d="M0 -6V5M-4 1L0 5L4 1"/></svg>Brief 090°</button>
+              <button type="button" data-from="330" data-kt="20" aria-pressed="false"><svg class="chip-arrow" viewBox="-8 -8 16 16" style="--r: 330deg" aria-hidden="true"><path d="M0 -6V5M-4 1L0 5L4 1"/></svg>Taunus 330°</button>
+              <button type="button" data-from="160" data-kt="45" aria-pressed="false"><svg class="chip-arrow" viewBox="-8 -8 16 16" style="--r: 160deg" aria-hidden="true"><path d="M0 -6V5M-4 1L0 5L4 1"/></svg>Gale 160°</button>
+            </div>
+          </div>
         </div>
         <div class="week-real">
           <div class="week-top">
@@ -117,29 +147,16 @@
           <p class="caption">Times in Frankfurt local time. Wind: DWD station 01420, ten-minute measurement at the top of each hour. Direction: public DFLD half-hour displays, a provisional stand-in for the directions actually flown.</p>
         </div>
         <div class="week-sim" hidden>
-          <div class="sim-top">
-            <div class="sim-result" aria-live="polite">
-              <span class="week-od" id="sim-od">25 Westbound</span>
-              <p id="sim-why"></p>
-            </div>
-            <div class="sim-sliders">
-              <label for="sim-from"><span class="readout-label">Wind from <b id="sim-from-out">250°</b></span></label>
-              <input id="sim-from" type="range" min="0" max="350" step="10" value="250">
-              <label for="sim-kt"><span class="readout-label">Wind speed <b id="sim-kt-out">12 kt</b></span></label>
-              <input id="sim-kt" type="range" min="0" max="45" step="1" value="12">
-            </div>
+          <div class="sim-result">
+            <span class="week-od" id="sim-od" aria-live="polite">25 Westbound</span>
+            <p id="sim-why"></p>
           </div>
-          <div class="sim-presets" role="group" aria-label="Examples">
-            <button type="button" data-from="250" data-kt="12">Typical westerly</button>
-            <button type="button" data-from="90" data-kt="20">Brief example: 090° · 20 kt</button>
-            <button type="button" data-from="330" data-kt="20">Taunus north wind: 330° · 20 kt</button>
-            <button type="button" data-from="160" data-kt="45">Gale across the runways</button>
-          </div>
-          <dl class="sim-checks">
-            <div><dt>Landing tailwind on 25 / 07</dt><dd id="sim-landing"></dd></div>
-            <div><dt>Runway 18 tailwind</dt><dd id="sim-18"></dd></div>
-            <div><dt>Crosswind on 07/25 · 18</dt><dd id="sim-cross"></dd></div>
-          </dl>
+          <ul class="gauges" aria-label="Wind against each runway limit">
+            <li class="gauge" id="g-25" style="--limit: 62.5%"><span class="g-label">Tailwind landing on 25</span><span class="g-value">0 kt</span><span class="g-track"><i class="g-fill"></i><b class="g-limit"></b></span><span class="g-cap">limit 10</span></li>
+            <li class="gauge" id="g-07" style="--limit: 62.5%"><span class="g-label">Tailwind landing on 07</span><span class="g-value">0 kt</span><span class="g-track"><i class="g-fill"></i><b class="g-limit"></b></span><span class="g-cap">limit 10</span></li>
+            <li class="gauge" id="g-18" style="--limit: 62.5%"><span class="g-label">Tailwind on Runway 18</span><span class="g-value">0 kt</span><span class="g-track"><i class="g-fill"></i><b class="g-limit"></b></span><span class="g-cap">limit 15</span></li>
+            <li class="gauge" id="g-cross" style="--limit: 62.5%"><span class="g-label">Crosswind on 07/25</span><span class="g-value">0 kt</span><span class="g-track"><i class="g-fill"></i><b class="g-limit"></b></span><span class="g-cap">limit 40</span></li>
+          </ul>
           <p class="caption">Applies the challenge's Section 3 baseline: landings need under 10 kt tailwind, departures under 15 kt, and crosswind above 40 kt closes a runway. A small tailwind is tolerated for 30 minutes; a wind you leave in place counts as persisting. Gusts are not modelled here, and this is weather suitability, not an official runway status.</p>
         </div>
       </div>

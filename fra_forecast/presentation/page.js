@@ -105,32 +105,71 @@ scrub.addEventListener("input", () => { setPlaying(false); setHour(Number(scrub.
 setHour(0);
 
 /* Set the wind yourself: the same stage, driven by the Section 3 baseline instead of the recorded week. */
-const fromInput = $("sim-from"), ktInput = $("sim-kt");
-let simOd = "25";
-function simulate() {
-  const from = Number(fromInput.value), kt = Number(ktInput.value), result = baseline(from, kt, simOd);
-  simOd = result.od;
-  showWind(from, kt, result.od, result.rwy18);
-  $("sim-from-out").textContent = `${compassPoint(from)} ${String(from).padStart(3, "0")}°`;
-  $("sim-kt-out").textContent = `${kt} kt`;
-  $("sim-od").textContent = result.od ? name(result.od === "07" ? "e" : "w") : "Parallel runways closed";
-  $("sim-why").textContent = result.why + (result.rwy18 ? "" : ` Runway 18 closes: ${Math.round(result.south.tail) >= 15 ? `a ${Math.round(result.south.tail)} kt tailwind reaches its 15 kt departure limit` : `a ${Math.round(result.south.cross)} kt crosswind exceeds 40 kt`}.`);
-  $("sim-landing").textContent = `${Math.round(result.w.tail)} kt / ${Math.round(result.e.tail)} kt · limit 10`;
-  $("sim-18").textContent = `${Math.round(result.south.tail)} kt · limit 15 · ${result.rwy18 ? "open" : "closed"}`;
-  $("sim-cross").textContent = `${Math.round(result.w.cross)} kt · ${Math.round(result.south.cross)} kt · limit 40`;
+const dial = $("sim-dial"), arrow = $("sim-arrow"), ktInput = $("sim-kt");
+const compassNames = {N: "north", NE: "northeast", E: "east", SE: "southeast", S: "south", SW: "southwest", W: "west", NW: "northwest"};
+let simFrom = 250, simOd = "25", arrowAngle = 250;
+function gauge(id, kt, limit, over) {
+  const row = $(id);
+  row.querySelector(".g-value").textContent = `${Math.round(kt)} kt`;
+  row.querySelector(".g-fill").style.transform = `scaleX(${Math.min(1, kt / (limit * 1.6))})`;
+  row.classList.toggle("is-over", over);
 }
+function simulate() {
+  const kt = Number(ktInput.value), result = baseline(simFrom, kt, simOd);
+  simOd = result.od;
+  showWind(simFrom, kt, result.od, result.rwy18);
+  const point = compassPoint(simFrom), degrees = String(simFrom).padStart(3, "0");
+  $("sim-from-out").textContent = `${point} ${degrees}°`;
+  dial.setAttribute("aria-valuenow", simFrom);
+  dial.setAttribute("aria-valuetext", `From ${compassNames[point]}, ${simFrom} degrees`);
+  arrowAngle = turn(arrowAngle, simFrom);
+  arrow.style.setProperty("--r", `${arrowAngle}deg`);
+  $("sim-kt-out").textContent = `${kt} kt`;
+  ktInput.style.setProperty("--v", `${kt / 45 * 100}%`);
+  const od = $("sim-od"), next = result.od ? name(result.od === "07" ? "e" : "w") : "Parallel runways closed";
+  if (od.textContent !== next) { od.textContent = next; od.classList.remove("swap"); void od.offsetWidth; od.classList.add("swap"); }
+  $("sim-why").textContent = result.why + (result.rwy18 ? "" : ` Runway 18 closes: ${Math.round(result.south.tail) >= 15 ? `a ${Math.round(result.south.tail)} kt tailwind reaches its 15 kt departure limit` : `a ${Math.round(result.south.cross)} kt crosswind exceeds 40 kt`}.`);
+  gauge("g-25", result.w.tail, 10, result.w.tail >= 10);
+  gauge("g-07", result.e.tail, 10, result.e.tail >= 10);
+  gauge("g-18", result.south.tail, 15, result.south.tail >= 15);
+  gauge("g-cross", result.w.cross, 40, result.w.cross > 40);
+  week.querySelectorAll(".sim-presets button").forEach(button =>
+    button.setAttribute("aria-pressed", String(Number(button.dataset.from) === simFrom && Number(button.dataset.kt) === kt)));
+}
+function setFrom(degrees) {
+  simFrom = ((Math.round(degrees / 10) * 10) % 360 + 360) % 360;
+  simulate();
+}
+// Drag or click anywhere on the dial; keys step 10° (Page keys 30°).
+function fromPointer(event) {
+  const box = dial.getBoundingClientRect();
+  setFrom(Math.atan2(event.clientX - box.left - box.width / 2, box.top + box.height / 2 - event.clientY) * 180 / Math.PI);
+}
+dial.addEventListener("pointerdown", event => { dial.setPointerCapture(event.pointerId); dial.classList.add("dragging"); fromPointer(event); });
+dial.addEventListener("pointermove", event => { if (dial.hasPointerCapture(event.pointerId)) fromPointer(event); });
+dial.addEventListener("pointerup", () => dial.classList.remove("dragging"));
+dial.addEventListener("pointercancel", () => dial.classList.remove("dragging"));
+dial.addEventListener("keydown", event => {
+  const step = {ArrowRight: 10, ArrowUp: 10, ArrowLeft: -10, ArrowDown: -10, PageUp: 30, PageDown: -30}[event.key];
+  if (step !== undefined) setFrom(simFrom + step);
+  else if (event.key === "Home") setFrom(0);
+  else if (event.key === "End") setFrom(350);
+  else return;
+  event.preventDefault();
+});
 function setMode(mode) {
   week.dataset.mode = mode;
   week.querySelectorAll(".week-mode button").forEach(button => button.setAttribute("aria-pressed", String(button.dataset.mode === mode)));
   week.querySelector(".week-real").hidden = mode === "sim";
   week.querySelector(".week-sim").hidden = mode !== "sim";
+  $("sim-controls").hidden = mode !== "sim";
   if (mode === "sim") { setPlaying(false); simulate(); } else setHour(hour);
+  week.dispatchEvent(new Event("modechange")); // the 3D stage reframes around the controls
 }
 week.querySelectorAll(".week-mode button").forEach(button => button.addEventListener("click", () => setMode(button.dataset.mode)));
 week.querySelectorAll(".sim-presets button").forEach(button => button.addEventListener("click", () => {
-  fromInput.value = button.dataset.from; ktInput.value = button.dataset.kt; simulate();
+  ktInput.value = button.dataset.kt; setFrom(Number(button.dataset.from));
 }));
-fromInput.addEventListener("input", simulate);
 ktInput.addEventListener("input", simulate);
 
 /* How it works: draw forecast, then correction, then corrected wind, lighting each step. */

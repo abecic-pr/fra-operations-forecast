@@ -7,4 +7,5 @@ export type SceneOptions = {
   /** Drive the scene with a given wind instead of its built-in westbound/eastbound loop. */
   control?: () => { from: number; kt: number; od: '25' | '07' | null; rwy18: boolean };
 };
-export function startScene(container: HTMLElement, wind: HTMLCanvasElement, labels: HTMLElement, options: SceneOptions): () => void;
+/** Returns a stop function; `refit()` reframes the airport after the caller's overlays change. */
+export function startScene(container: HTMLElement, wind: HTMLCanvasElement, labels: HTMLElement, options: SceneOptions): (() => void) & { refit(): void };

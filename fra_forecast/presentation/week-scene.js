@@ -6,10 +6,17 @@ const stage = week.querySelector(".week-stage");
 let visible = false;
 new IntersectionObserver(([entry]) => { visible = entry.isIntersecting; }).observe(stage);
 
+// Keep the airport clear of the floating mode switch and, while simulating, the control card.
+function padding() {
+  const controls = document.getElementById("sim-controls");
+  const beside = week.dataset.mode === "sim" && innerWidth >= 900 ? controls.offsetWidth + 40 : 24;
+  return {top: 76, bottom: 24, left: 24, right: beside};
+}
+
 try {
-  startScene(stage.querySelector(".airport-map"), stage.querySelector(".wind-field"), stage.querySelector(".airport-labels"), {
+  const scene = startScene(stage.querySelector(".airport-map"), stage.querySelector(".wind-field"), stage.querySelector(".airport-labels"), {
     still: matchMedia("(prefers-reduced-motion: reduce)").matches,
-    padding: () => ({top: 48, bottom: 24, left: 24, right: 24}),
+    padding,
     paused: () => !visible || document.hidden,
     onReady: () => stage.classList.add("is-ready"),
     control: () => {
@@ -17,6 +24,7 @@ try {
       return {from: Number(week.dataset.windFrom), kt: Number(week.dataset.windKt), od: od === "25" || od === "07" ? od : null, rwy18: week.dataset.rwy18 !== "closed"};
     },
   });
+  week.addEventListener("modechange", () => scene.refit());
 } catch {
   stage.hidden = true; // no WebGL: the readouts and chart still work
 }
